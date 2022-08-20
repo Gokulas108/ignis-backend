@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ignis-backend
+
+  SAM Template for ignis-backend
+
+Parameters:
+  Env:
+    Type: String
+    AllowedValues:
+      - dev
+      - prod
+    Description: Environment in which the application will be deployed. Allowed values [dev, prod]
+
+Mappings:
+  EnvMapping:
+    dev:
+      dbHost: "{{resolve:ssm:IGNIS_DEV_DB_HOST}}"
+      dbName: "{{resolve:ssm:IGNIS_DEV_DB_NAME}}"
+      dbUser: "{{resolve:ssm:IGNIS_DEV_DB_USERNAME}}"
+      dbPass: "{{resolve:ssm:IGNIS_DEV_DB_PASSWORD}}"
+      dbPort: "{{resolve:ssm:IGNIS_DEV_DB_PORT}}"
+    prod:
+      dbHost: xxxxxxxxx # Database yet to be created
+      dbName: xxxxxxxxx # Database yet to be created
+      dbUser: xxxxxxxxx # Database yet to be created
+      dbPass: xxxxxxxxx # Database yet to be created
+      dbPort: xxxxxxxxx # Database yet to be created
+
+Globals:
+  Function:
+    Timeout: 180
+    Handler: app.lambdaHandler
+    Runtime: nodejs14.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        DB_HOST: !FindInMap [EnvMapping, !Ref Env, dbHost]
+        DB_NAME: !FindInMap [EnvMapping, !Ref Env, dbName]
+        DB_USER: !FindInMap [EnvMapping, !Ref Env, dbUser]
+        DB_PASS: !FindInMap [EnvMapping, !Ref Env, dbPass]
+        DB_PORT: !FindInMap [EnvMapping, !Ref Env, dbPort]
+        ResetVariable: 0 # Used for cold start!
+
+Resources:
+  ############ LAMBDA FUNCTIONS ############
+
+  #Auth API to authenticate users
+  AuthAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/auth/
+      Events:
+        AuthApi:
+          Type: Api
+          Properties:
+            Path: /auth/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #DropDown API to Add/View/Modify/Delete dropdowns
+  DropdownAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/dropdown/
+      Events:
+        DropdownApi:
+          Type: Api
+          Properties:
+            Path: /dropdown/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #Buildings API to Add/View/Modify/Delete buildings
+  BuildingsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/buildings/
+      Events:
+        BuildingsApi:
+          Type: Api
+          Properties:
+            Path: /buildings
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #Notifications API to Add/View/Modify/Delete buildings
+  NotificationsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/notifications/
+      Events:
+        NotificationsApi:
+          Type: Api
+          Properties:
+            Path: /notifications
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #Coordinates API to get Coordinate from QND95 to Lat&Long
+  CoordinatesAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/coordinates/
+      Events:
+        CoordinatesApi:
+          Type: Api
+          Properties:
+            Path: /coordinates
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  ############ DEPENDENCIES ############
+
+  #Common Dependencies
+  GeneralDependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: dependencies
+      Description: Common Dependencies
+      ContentUri: dependencies/general/
+      CompatibleRuntimes:
+        - nodejs14.x
+      LicenseInfo: "MIT"
+      RetentionPolicy: Retain
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
