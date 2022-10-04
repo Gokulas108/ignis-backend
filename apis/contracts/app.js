@@ -16,23 +16,19 @@ exports.lambdaHandler = async (event, context) => {
 				break;
 			case "GET":
 				let params = event.queryStringParameters;
-				if (params?.column_name === "names")
-					[data, statusCode] = await getBuildingsByName();
-				else if (params?.id)
-					[data, statusCode] = await getBuildingById(params.id);
-				else {
-					page = parseInt(params.page);
-					limit = parseInt(params.limit);
-					[data, statusCode] = await getBuildings(
-						page,
-						limit,
-						params.searchText
-					);
-				}
+				building_id = parseInt(params.building_id);
+				page = parseInt(params.page);
+				limit = parseInt(params.limit);
+				[data, statusCode] = await getContracts(
+					building_id,
+					page,
+					limit,
+					params.searchText
+				);
 				break;
 			case "POST":
 				let body = JSON.parse(event.body);
-				[data, statusCode] = await addBuilding(body.building);
+				[data, statusCode] = await addContract(body.contract);
 				break;
 			default:
 				[data, statusCode] = ["Error: Invalid request", 400];
@@ -48,26 +44,24 @@ exports.lambdaHandler = async (event, context) => {
 
 //Getting all building details
 //Output - Object of all buildings
-// async function getBuildings() {
-// 	const users = await db.any(`SELECT * FROM buildings ORDER BY id DESC`);
-// 	let data = users;
-// 	let statusCode = 200;
-// 	return [data, statusCode];
-// }
-
-async function getBuildings(page = 1, limit = 10, searchText = "") {
+async function getContracts(
+	building_id = 0,
+	page = 1,
+	limit = 10,
+	searchText = ""
+) {
 	let offset = (page - 1) * limit;
 	let users;
 	if (searchText === "") {
 		users = await db.any(
-			`SELECT id, building_name, building_area, building_completion_certificate_number, count(*) OVER() AS full_count FROM buildings ORDER BY id DESC OFFSET $1 LIMIT $2`,
-			[offset, limit]
+			`SELECT con.id as id, con.contract_number AS contract_number, ct.value as contract_type, con.total_contract_value AS total_contract_value,  con.fire_protection_systems AS fire_protection_systems, count(con.*) OVER() AS full_count FROM contracts con JOIN contract_type ct ON con.contract_type = ct.id WHERE con.building_id = $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+			[building_id, offset, limit]
 		);
 	} else {
 		searchText = `%${searchText}%`;
 		users = await db.any(
-			`SELECT id, building_name, building_area, building_completion_certificate_number, count(*) OVER() AS full_count FROM buildings WHERE building_name iLIKE $1 OR building_area iLIKE $1 OR building_completion_certificate_number iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
-			[searchText, offset, limit]
+			`SELECT con.id as id, con.contract_number AS contract_number, ct.value as contract_type, con.total_contract_value AS total_contract_value,  con.fire_protection_systems AS fire_protection_systems, count(con.*) OVER() AS full_count FROM contracts con JOIN contract_type ct ON con.contract_type = ct.id WHERE con.building_id = $1 AND con.contract_number iLIKE $2 OR ct.value iLIKE $2 OR con.total_contract_value iLIKE $2 ORDER BY id DESC OFFSET $3 LIMIT $4`,
+			[building_id, searchText, offset, limit]
 		);
 	}
 
@@ -76,26 +70,10 @@ async function getBuildings(page = 1, limit = 10, searchText = "") {
 	return [data, statusCode];
 }
 
-async function getBuildingsByName() {
-	const users = await db.any(
-		`SELECT id, building_name FROM buildings ORDER BY id DESC`
-	);
-	let data = users;
-	let statusCode = 200;
-	return [data, statusCode];
-}
-
-async function getBuildingById(id) {
-	const users = await db.one(`SELECT * FROM buildings WHERE id = $1`, [id]);
-	let data = users;
-	let statusCode = 200;
-	return [data, statusCode];
-}
-
 //Adding a new building
 //Input - Building details
 //Output - Added successfully
-async function addBuilding(data) {
+async function addContract(data) {
 	let column_names = Object.keys(data);
 	column_names = column_names.join();
 	let values = Object.values(data);
@@ -111,16 +89,22 @@ async function addBuilding(data) {
 			}`
 	);
 	values = values.join();
-	let sql_stmt = `INSERT INTO buildings (${column_names}) VALUES (${values}) RETURNING id`;
-	const building = await db.one(sql_stmt, col_values);
+	let sql_stmt = `INSERT INTO contracts (${column_names}) VALUES (${values}) RETURNING id, fire_protection_systems, contract_number`;
+	const contract = await db.one(sql_stmt, col_values);
 
-	// sql_stmt = `INSERT INTO notifications (building_id, notification_type, fire_protection_systems, reason) VALUES ($1,$2, $3::json[], $4) RETURNING id`;
-	// const asset_notification = await db.one(sql_stmt, [
-	// 	building.id,
-	// 	"Asset Tagging",
-	// 	building.fire_protection_systems,
-	// 	"Tag assets for the added building",
-	// ]);
+	let systems = contract.fire_protection_systems.map((system) => system.system);
+	let systemNames = await db.any(
+		`SELECT name FROM systems WHERE id IN (${systems.toString()})`
+	);
+	systemNames = systemNames.map((system) => system.name);
+
+	sql_stmt = `INSERT INTO notifications (contract_id, notification_type, fire_protection_systems, reason) VALUES ($1,$2, $3::json[], $4) RETURNING id`;
+	const asset_notification = await db.one(sql_stmt, [
+		contract.id,
+		"Asset Tagging",
+		contract.fire_protection_systems,
+		"Tag assets for the Systems: " + systemNames.join(", "),
+	]);
 
 	// const frequencies = [
 	// 	...new Set(building.fire_protection_systems.map((fps) => fps.frequency)),
@@ -151,7 +135,7 @@ async function addBuilding(data) {
 	// 		]);
 	// 	}
 	// }
-	return [building, 200];
+	return [contract, 200];
 }
 
 //######### HELPER FUNCTIONS #############

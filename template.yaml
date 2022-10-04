@@ -61,6 +61,20 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #Assets API to manage Assets
+  AssetsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/assets/
+      Events:
+        AssetsApi:
+          Type: Api
+          Properties:
+            Path: /assets/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #DropDown API to Add/View/Modify/Delete dropdowns
   DropdownAPIFunction:
     Type: AWS::Serverless::Function
@@ -71,6 +85,20 @@ Resources:
           Type: Api
           Properties:
             Path: /dropdown/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #Clients API to Add/View/Modify/Delete buildings
+  ClientsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clients/
+      Events:
+        ClientsApi:
+          Type: Api
+          Properties:
+            Path: /clients
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -89,6 +117,19 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  ContractsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/contracts/
+      Events:
+        ContractsApi:
+          Type: Api
+          Properties:
+            Path: /contracts
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #Notifications API to Add/View/Modify/Delete buildings
   NotificationsAPIFunction:
     Type: AWS::Serverless::Function
@@ -99,6 +140,20 @@ Resources:
           Type: Api
           Properties:
             Path: /notifications
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #WorkOrders API to Add/View/Modify/Delete buildings
+  WorkOrdersAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/workorders/
+      Events:
+        WorkOrdersApi:
+          Type: Api
+          Properties:
+            Path: /workorders
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer

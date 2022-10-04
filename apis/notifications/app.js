@@ -15,7 +15,14 @@ exports.lambdaHandler = async (event, context) => {
 				[data, statusCode] = ["Success", 200];
 				break;
 			case "GET":
-				[data, statusCode] = await getNotifications();
+				let params = event.queryStringParameters;
+				page = parseInt(params.page);
+				limit = parseInt(params.limit);
+				[data, statusCode] = await getNotifications(
+					page,
+					limit,
+					params.searchText
+				);
 				break;
 			case "POST":
 				let body = JSON.parse(event.body);
@@ -34,10 +41,31 @@ exports.lambdaHandler = async (event, context) => {
 };
 
 //Getting notification details from the backend
-async function getNotifications() {
-	const users = await db.any(
-		`SELECT n.*, b.building_name FROM notifications n JOIN buildings b ON n.building_id = b.id ORDER BY n.id DESC`
-	);
+// async function getNotifications() {
+// 	const users = await db.any(
+// 		`SELECT n.*, c.contract_number FROM notifications n JOIN buildings b ON n.building_id = b.id ORDER BY n.id DESC`
+// 	);
+// 	let data = users;
+// 	let statusCode = 200;
+// 	return [data, statusCode];
+// }
+
+async function getNotifications(page = 1, limit = 10, searchText = "") {
+	let offset = (page - 1) * limit;
+	let users;
+	if (searchText === "") {
+		users = await db.any(
+			`select n.*, cb.contract_number, cb.building_name from notifications n join (select c.id as id, c.contract_number as contract_number, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id ORDER BY n.id DESC OFFSET $1 LIMIT $2`,
+			[offset, limit]
+		);
+	} else {
+		searchText = `%${searchText}%`;
+		users = await db.any(
+			`select n.*, cb.contract_number, cb.building_name from notifications n join (select c.id as id, c.contract_number as contract_number, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id WHERE n.notification_type iLIKE $1 OR cb.contract_number iLIKE $1 OR cb.building_name iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+			[searchText, offset, limit]
+		);
+	}
+
 	let data = users;
 	let statusCode = 200;
 	return [data, statusCode];

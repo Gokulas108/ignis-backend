@@ -92,6 +92,7 @@ async function getAllDropdowns() {
 	let [hazardClassification] = await getHazardClassifications();
 	let [typeOfConstruction] = await getTypeOfConstruction();
 	let [contractType] = await getContractType();
+	let [engineers] = await getEngineers();
 	let [add_building_required_fields] = await getBuildingFields();
 	let data = {
 		occupancyClassification,
@@ -99,7 +100,18 @@ async function getAllDropdowns() {
 		typeOfConstruction,
 		contractType,
 		add_building_required_fields,
+		engineers,
 	};
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
+//Getting data from Occupancy Classification table
+async function getEngineers() {
+	const users = await db.any(`SELECT id, name FROM users WHERE role = $1`, [
+		"engineer",
+	]);
+	let data = users;
 	let statusCode = 200;
 	return [data, statusCode];
 }
@@ -181,7 +193,7 @@ async function addNewContractType(new_value) {
 
 async function saveRequiredfields(fields) {
 	await db.none(
-		"UPDATE client SET add_building_required_fields = $1 WHERE id = 1",
+		"UPDATE client SET add_building_required_fields = $1 WHERE id = 28",
 		[fields]
 	);
 	let statusCode = 200;
@@ -190,7 +202,7 @@ async function saveRequiredfields(fields) {
 
 async function getBuildingFields() {
 	const data = await db.one(
-		"SELECT add_building_required_fields FROM client where id = 1"
+		"SELECT add_building_required_fields FROM client where id = 28"
 	);
 	let statusCode = 200;
 	return [data, statusCode];

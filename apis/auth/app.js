@@ -18,6 +18,7 @@ exports.lambdaHandler = async (event, context) => {
 					path === "register" ||
 					path === "login" ||
 					path === "verify" ||
+					path === "users" ||
 					path === "reset"
 				) {
 					[data, statusCode] = ["Success", 200];
@@ -29,6 +30,12 @@ exports.lambdaHandler = async (event, context) => {
 			// Get functions
 			case "GET":
 				// [data, statusCode] = await getBuildings();
+				if (path === "users") {
+					let params = event.queryStringParameters;
+					page = parseInt(params.page);
+					limit = parseInt(params.limit);
+					[data, statusCode] = await getUsers(page, limit, params.searchText);
+				}
 				break;
 
 			//Post functions
@@ -54,51 +61,75 @@ exports.lambdaHandler = async (event, context) => {
 	return response;
 };
 
+async function getUsers(page = 1, limit = 10, searchText = "") {
+	let offset = (page - 1) * limit;
+	let users;
+	if (searchText === "") {
+		users = await db.any(
+			`SELECT id, name, username, role, count(*) OVER() AS full_count FROM users ORDER BY id DESC OFFSET $1 LIMIT $2`,
+			[offset, limit]
+		);
+	} else {
+		searchText = `%${searchText}%`;
+		users = await db.any(
+			`SELECT id, name, username, role, count(*) OVER() AS full_count FROM users WHERE name iLIKE $1 OR username iLIKE $1 OR role iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+			[searchText, offset, limit]
+		);
+	}
+
+	let data = users;
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
 //Registering an user account
-// INPUTS - Name, User type, Email
+// INPUTS - Name, User type, username
 //OUTPUTS - User created  successfully
 async function registerAccount(userInfo) {
-	let { name, email, password, role } = { ...userInfo };
+	let { name, username, password, role } = { ...userInfo };
 
 	//Checking all fields
-	if (!name || !email || !password || !role)
+	if (!name || !username || !password || !role)
 		return ["Error: All fields are required", 401];
 
 	//Checking if user already exist
-	const users = await db.any("SELECT * FROM users WHERE email = $1", [email]);
+	const users = await db.any("SELECT * FROM users WHERE username = $1", [
+		username,
+	]);
 	if (users.length) return ["Error: User already exist", 401];
 
 	//Registering user
 	const encryptedPassword = bcrypt.hashSync(password.trim(), 10);
-	email = email.toLowerCase().trim();
+	username = username.toLowerCase().trim();
 	role = role.toLowerCase().trim();
 	await db.none(
-		"INSERT INTO users(name, email, password, role) VALUES($1, $2, $3, $4)",
-		[name, email, encryptedPassword, role]
+		"INSERT INTO users(name, username, password, role) VALUES($1, $2, $3, $4)",
+		[name, username, encryptedPassword, role]
 	);
 	return ["User created successfully", 200];
 }
 
 //Logging into user account
-//Inputs - Email, password
+//Inputs - username, password
 //Output - Logged in
 async function login(userInfo) {
-	let { email, password } = { ...userInfo };
+	let { username, password } = { ...userInfo };
 
 	//Checking required fields
-	if (!email || !password) return ["Error: All fields are required", 401];
+	if (!username || !password) return ["Error: All fields are required", 401];
 
 	//Checking if user exists and comparing password
-	const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1", [
-		email,
+	const user = await db.oneOrNone("SELECT * FROM users WHERE username = $1", [
+		username,
 	]);
-	if (!user || !user.email) return ["Error: No User found", 401];
+	if (!user || !user.username) return ["Error: No User found", 401];
 	else {
 		if (!bcrypt.compareSync(password, user.password)) {
 			return ["Error: Incorrect password", 403];
 		}
 		let new_user = {
-			email: user.email,
+			id: user.id,
+			username: user.username,
 			name: user.name,
 			role: user.role,
 			first_login: user.first_login,
@@ -115,13 +146,13 @@ async function login(userInfo) {
 //Verifying Token
 //Input - Token
 function verify({ user, token }) {
-	if (!user || !user.email || !user.role || !user.name)
+	if (!user || !user.username || !user.role || !user.name)
 		return [{ verified: false, mssg: "incorrect request body" }, 400];
 
 	verification = jwt.verify(token, "mysecretkey30903xcdfsdfg", (err, res) => {
 		if (err) return { verified: false, mssg: "invalid token" };
 		if (
-			res.email !== user.email ||
+			res.username !== user.username ||
 			res.role !== user.role ||
 			res.name !== user.name
 		)
@@ -158,12 +189,12 @@ async function resetPasswordFirstTime(body) {
 	else if (!user) return ["Error: No user", 401];
 
 	if (new_password === confirm_password) {
-		let email = user.email;
+		let username = user.username;
 		const encryptedPassword = bcrypt.hashSync(new_password.trim(), 10);
 		if (user.first_login) {
 			await db.none(
-				"UPDATE users SET password = $1, first_login = $2 WHERE email = $3",
-				[encryptedPassword, false, email]
+				"UPDATE users SET password = $1, first_login = $2 WHERE username = $3",
+				[encryptedPassword, false, username]
 			);
 			return ["Password changed successfully", 200];
 		}
