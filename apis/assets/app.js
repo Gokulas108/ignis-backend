@@ -15,8 +15,8 @@ exports.lambdaHandler = async (event, context) => {
 				if (
 					path === "systems" ||
 					path === "devices" ||
-					path === "verify" ||
-					path === "users" ||
+					path === "schedule" ||
+					path === "workorders" ||
 					path === "reset"
 				) {
 					[data, statusCode] = ["Success", 200];
@@ -45,10 +45,10 @@ exports.lambdaHandler = async (event, context) => {
 			//Post functions
 			case "POST":
 				let body = JSON.parse(event.body);
-				if (path === "register")
-					[data, statusCode] = await registerAccount(body.userInfo);
-				else if (path === "login")
-					[data, statusCode] = await login(body.userInfo);
+				if (path === "schedule")
+					[data, statusCode] = await schedule(body.values);
+				else if (path === "workorders")
+					[data, statusCode] = await newWorkOrder(body.values);
 				else if (path === "verify") [data, statusCode] = await verify(body);
 				else if (path === "reset")
 					[data, statusCode] = await resetPasswordFirstTime(body);
@@ -64,6 +64,35 @@ exports.lambdaHandler = async (event, context) => {
 	response = responseHandler(data, statusCode);
 	return response;
 };
+
+async function schedule(values) {
+	let systems = values.systems.map((system) => system.system);
+	let schedule = await db.any(
+		`SELECT distinct t.user_id, u.name FROM technician t JOIN users u ON u.id = t.user_id WHERE t.system_id IN (${systems.toString()}) AND t.user_id NOT IN (SELECT user_id from schedule where not (start > $1 OR "end" < $2))`,
+		[values.date[1], values.date[0]]
+	);
+	return [schedule, 200];
+}
+
+async function newWorkOrder(values) {
+	let yourDate = new Date();
+	let date = yourDate.toISOString().split("T")[0];
+	let values_to_be_inserted = [];
+	values.assigned.map((x) => {
+		values_to_be_inserted.push(
+			`('${values.notification_type}', ${values.building_id}, 'Pending', '${values.reason}', '${date}', ${x})`
+		);
+	});
+	let wo = await db.any(
+		`INSERT into workorders (type, building_id, status, details, date, user_id) VALUES${values_to_be_inserted.toString()} returning wo_id`
+	);
+
+	await db.any(
+		`INSERT into schedule (user_id, start, "end", activity) VALUES ($1, $2, $3, $4)`,
+		[values.assigned[0], values.date[0], values.date[1], `WO# ${wo[0].wo_id}`]
+	);
+	return ["Work Order created!", 200];
+}
 
 async function getSystems() {
 	let systems = await db.any("SELECT * FROM systems");

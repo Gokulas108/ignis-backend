@@ -102,9 +102,25 @@ async function registerAccount(userInfo) {
 	const encryptedPassword = bcrypt.hashSync(password.trim(), 10);
 	username = username.toLowerCase().trim();
 	role = role.toLowerCase().trim();
-	await db.none(
-		"INSERT INTO users(name, username, password, role) VALUES($1, $2, $3, $4)",
+	const user = await db.one(
+		"INSERT INTO users(name, username, password, role) VALUES($1, $2, $3, $4) returning id",
 		[name, username, encryptedPassword, role]
+	);
+
+	let values_to_be_inserted = [];
+
+	if (role === "technician" && userInfo.system_rating) {
+		userInfo.system_rating.map((x) => {
+			x.itm.map((y) => {
+				values_to_be_inserted.push(
+					`(${user.id}, ${x.system}, '${y}', ${parseInt(x.rating)})`
+				);
+			});
+		});
+	}
+
+	await db.none(
+		`INSERT INTO technician(user_id, system_id, itm, rating) VALUES${values_to_be_inserted.toString()}`
 	);
 	return ["User created successfully", 200];
 }
