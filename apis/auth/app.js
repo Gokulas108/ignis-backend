@@ -117,11 +117,11 @@ async function registerAccount(userInfo) {
 				);
 			});
 		});
+		await db.none(
+			`INSERT INTO technician(user_id, system_id, itm, rating) VALUES${values_to_be_inserted.toString()}`
+		);
 	}
 
-	await db.none(
-		`INSERT INTO technician(user_id, system_id, itm, rating) VALUES${values_to_be_inserted.toString()}`
-	);
 	return ["User created successfully", 200];
 }
 

@@ -55,13 +55,13 @@ async function getNotifications(page = 1, limit = 10, searchText = "") {
 	let users;
 	if (searchText === "") {
 		users = await db.any(
-			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notifications n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id ORDER BY n.id DESC OFFSET $1 LIMIT $2`,
+			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notification n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id ORDER BY n.contract_id DESC OFFSET $1 LIMIT $2`,
 			[offset, limit]
 		);
 	} else {
 		searchText = `%${searchText}%`;
 		users = await db.any(
-			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notifications n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id WHERE n.notification_type iLIKE $1 OR cb.contract_number iLIKE $1 OR cb.building_name iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notification n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id WHERE n.type iLIKE $1 OR cb.contract_number iLIKE $1 OR cb.building_name iLIKE $1 ORDER BY n.contract_id DESC OFFSET $2 LIMIT $3`,
 			[searchText, offset, limit]
 		);
 	}
@@ -75,17 +75,16 @@ async function getNotifications(page = 1, limit = 10, searchText = "") {
 //Input - Building id, Notification details
 //output - Notification added for a building
 async function addNotification(notification) {
-	let { building_id, notification_type, reason, fire_protection_systems } = {
+	let { contract_id, reason, itm, systems } = {
 		...notification,
 	};
 
-	if (!building_id || !notification_type || !fire_protection_systems)
-		throw new Error("Incompete details");
+	if (!contract_id || !itm || !systems) throw new Error("Incompete details");
 	if (!reason) reason = "";
 
 	await db.none(
-		"INSERT INTO notifications (building_id, notification_type, reason, fire_protection_systems) values ($1, $2, $3, $4::json[])",
-		[building_id, notification_type, reason, fire_protection_systems]
+		"INSERT INTO notification (type, contract_id, system, activity, reason, status) values ($1, $2, $3, $4, $5, $6)",
+		["task", contract_id, systems, itm, reason, "open"]
 	);
 
 	return ["Notification Added", 200];

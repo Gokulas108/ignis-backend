@@ -17,7 +17,11 @@ exports.lambdaHandler = async (event, context) => {
 					path === "devices" ||
 					path === "schedule" ||
 					path === "workorders" ||
-					path === "reset"
+					path === "reset" ||
+					path === "getassetsforwo" ||
+					path === "getassetsforbldg" ||
+					path === "getContractforBldg" ||
+					path === "getSystemsforContract"
 				) {
 					[data, statusCode] = ["Success", 200];
 				} else {
@@ -39,7 +43,20 @@ exports.lambdaHandler = async (event, context) => {
 						limit,
 						params.searchText
 					);
+				} else if (path === "getassetsforwo") {
+					let params = event.queryStringParameters;
+					[data, statusCode] = await getAssetsforWO(params.id);
+				} else if (path === "getassetsforbldg") {
+					let params = event.queryStringParameters;
+					[data, statusCode] = await getAssetsforBldg(params.id);
+				} else if (path === "getContractforBldg") {
+					let params = event.queryStringParameters;
+					[data, statusCode] = await getContractforBldg(params.id);
+				} else if (path === "getSystemsforContract") {
+					let params = event.queryStringParameters;
+					[data, statusCode] = await getSystemsforContract(params.id);
 				}
+
 				break;
 
 			//Post functions
@@ -78,19 +95,28 @@ async function newWorkOrder(values) {
 	let yourDate = new Date();
 	let date = yourDate.toISOString().split("T")[0];
 	let values_to_be_inserted = [];
-	values.assigned.map((x) => {
-		values_to_be_inserted.push(
-			`('${values.notification_type}', ${values.building_id}, 'Pending', '${values.reason}', '${date}', ${x})`
-		);
-	});
+
 	let wo = await db.any(
-		`INSERT into workorders (type, building_id, status, details, date, user_id) VALUES${values_to_be_inserted.toString()} returning wo_id`
+		`INSERT into workorders (status, date, user_id) VALUES($1, $2, $3) returning wo_id`,
+		["Pending", date, values.assigned[0]]
 	);
 
+	values.assigned.map((x) => {
+		values_to_be_inserted.push(`(${x}, $1, $2, $3, $4)`);
+	});
+
 	await db.any(
-		`INSERT into schedule (user_id, start, "end", activity) VALUES ($1, $2, $3, $4)`,
-		[values.assigned[0], values.date[0], values.date[1], `WO# ${wo[0].wo_id}`]
+		`INSERT into schedule (user_id, start, "end", activity, wo_id) VALUES${values_to_be_inserted.toString()}`,
+		[values.date[0], values.date[1], `WO# ${wo[0].wo_id}`, wo[0].wo_id]
 	);
+
+	let notifications = values.record.map((x) => x.id);
+
+	await db.any(
+		`UPDATE notification SET assigned_wo = $1, status = $2 WHERE id IN (${notifications.toString()})`,
+		[wo[0].wo_id, "pending"]
+	);
+
 	return ["Work Order created!", 200];
 }
 
@@ -118,4 +144,40 @@ async function getDevices(sys_id = 0, page = 1, limit = 10, searchText = "") {
 	let data = users;
 	let statusCode = 200;
 	return [data, statusCode];
+}
+
+async function getAssetsforWO(id) {
+	let data = await db.any(`SELECT * from assets WHERE wo_id = $1`, [id]);
+	return [data, 200];
+}
+
+async function getAssetsforBldg(id) {
+	let data = await db.any(
+		`SELECT asset_id, device from assets WHERE building_id = $1`,
+		[id]
+	);
+	return [data, 200];
+}
+
+async function getContractforBldg(id) {
+	let data = await db.any(
+		"SELECT id, contract_number from contracts WHERE building_id = $1",
+		[id]
+	);
+	return [data, 200];
+}
+
+async function getSystemsforContract(id) {
+	let systems = await db.oneOrNone(
+		"SELECT fire_protection_systems FROM contracts WHERE id = $1",
+		[id]
+	);
+	let system_ids = systems.fire_protection_systems.map(
+		(system) => system.system
+	);
+	system_ids = system_ids.join();
+	let data = await db.any(
+		`SELECT id, name FROM systems WHERE id in (${system_ids})`
+	);
+	return [data, 200];
 }

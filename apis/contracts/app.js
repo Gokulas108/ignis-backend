@@ -94,17 +94,28 @@ async function addContract(data) {
 
 	let systems = contract.fire_protection_systems.map((system) => system.system);
 	let systemNames = await db.any(
-		`SELECT name FROM systems WHERE id IN (${systems.toString()})`
+		`SELECT id, name FROM systems WHERE id IN (${systems.toString()})`
 	);
-	systemNames = systemNames.map((system) => system.name);
+	systemNames = systemNames.map(
+		(system) => `($1, $2, $3, ${system.id}, 'Tag assets for ${system.name}')`
+	);
 
-	sql_stmt = `INSERT INTO notifications (contract_id, notification_type, fire_protection_systems, reason) VALUES ($1,$2, $3::json[], $4) RETURNING id`;
-	const asset_notification = await db.one(sql_stmt, [
+	sql_stmt = `INSERT INTO notification (contract_id, type, activity, system, reason) VALUES ${systemNames.join(
+		","
+	)}`;
+	const asset_notification = await db.none(sql_stmt, [
 		contract.id,
+		"task",
 		"Asset Tagging",
-		contract.fire_protection_systems,
-		"Tag assets for the Systems: " + systemNames.join(", "),
 	]);
+
+	// sql_stmt = `INSERT INTO notifications (contract_id, notification_type, fire_protection_systems, reason) VALUES ($1,$2, $3::json[], $4) RETURNING id`;
+	// const asset_notification = await db.one(sql_stmt, [
+	// 	contract.id,
+	// 	"Asset Tagging",
+	// 	contract.fire_protection_systems,
+	// 	"Tag assets for the Systems: " + systemNames.join(", "),
+	// ]);
 
 	// const frequencies = [
 	// 	...new Set(building.fire_protection_systems.map((fps) => fps.frequency)),
