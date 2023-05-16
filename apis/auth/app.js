@@ -19,6 +19,9 @@ exports.lambdaHandler = async (event, context) => {
 					path === "login" ||
 					path === "verify" ||
 					path === "users" ||
+					path === "employee" ||
+					path === "employeeID" ||
+					path === "resource" ||
 					path === "reset"
 				) {
 					[data, statusCode] = ["Success", 200];
@@ -36,6 +39,30 @@ exports.lambdaHandler = async (event, context) => {
 					limit = parseInt(params.limit);
 					[data, statusCode] = await getUsers(page, limit, params.searchText);
 				}
+				if (path === "employee") {
+					let params = event.queryStringParameters;
+					page = parseInt(params.page);
+					limit = parseInt(params.limit);
+					[data, statusCode] = await getEmployee(
+						page,
+						limit,
+						params.searchText
+					);
+				}
+				if (path === "resource") {
+					let params = event.queryStringParameters;
+					page = parseInt(params.page);
+					limit = parseInt(params.limit);
+					[data, statusCode] = await getResource(
+						page,
+						limit,
+						params.searchText
+					);
+				}
+				if (path === "employeeID") {
+					[data, statusCode] = await getEmployeeID();
+				}
+
 				break;
 
 			//Post functions
@@ -48,6 +75,10 @@ exports.lambdaHandler = async (event, context) => {
 				else if (path === "verify") [data, statusCode] = await verify(body);
 				else if (path === "reset")
 					[data, statusCode] = await resetPasswordFirstTime(body);
+				else if (path === "employee")
+					[data, statusCode] = await registerEmployee(body.employeeInfo);
+				else if (path === "resource")
+					[data, statusCode] = await registerResource(body.resourceInfo);
 				break;
 			default:
 				[data, statusCode] = ["Error: Invalid request", 400];
@@ -82,29 +113,83 @@ async function getUsers(page = 1, limit = 10, searchText = "") {
 	return [data, statusCode];
 }
 
+async function getEmployee(page = 1, limit = 10, searchText = "") {
+	let offset = (page - 1) * limit;
+	let employee;
+	if (searchText === "") {
+		employee = await db.any(
+			`SELECT  *, count(*) OVER() AS full_count FROM employee ORDER BY id DESC OFFSET $1 LIMIT $2`,
+			[offset, limit]
+		);
+	} else {
+		searchText = `%${searchText}%`;
+		employee = await db.any(
+			`SELECT *, count(*) OVER() AS full_count FROM employee WHERE name iLIKE $1 OR id iLIKE $1 OR role iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+			[searchText, offset, limit]
+		);
+	}
+
+	let data = employee;
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
+async function getResource(page = 1, limit = 10, searchText = "") {
+	let offset = (page - 1) * limit;
+	let resource;
+	if (searchText === "") {
+		resource = await db.any(
+			`SELECT *, count(*) OVER() AS full_count FROM resource ORDER BY id DESC OFFSET $1 LIMIT $2`,
+			[offset, limit]
+		);
+	} else {
+		searchText = `%${searchText}%`;
+		resource = await db.any(
+			`SELECT *, count(*) OVER() AS full_count FROM resource WHERE name iLIKE $1 OR type iLIKE $1 OR description iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+			[searchText, offset, limit]
+		);
+	}
+
+	let data = resource;
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
+async function getEmployeeID() {
+	let employeeIDs;
+	employeeIDs = await db.any(`SELECT id FROM employee`);
+
+	let data = employeeIDs;
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
 //Registering an user account
 // INPUTS - Name, User type, username
 //OUTPUTS - User created  successfully
 async function registerAccount(userInfo) {
-	let { name, username, password, role } = { ...userInfo };
+	let { id, password, role } = { ...userInfo };
 
 	//Checking all fields
-	if (!name || !username || !password || !role)
-		return ["Error: All fields are required", 401];
+	if (!id || !password || !role) return ["Error: All fields are required", 401];
 
 	//Checking if user already exist
 	const users = await db.any("SELECT * FROM users WHERE username = $1", [
-		username,
+		id.toString(),
 	]);
 	if (users.length) return ["Error: User already exist", 401];
 
+	const emp = await db.any("SELECT name FROM employee WHERE id = $1", [
+		parseInt(id),
+	]);
+	if (!emp.length) return [`Error: Employee ID ${id} does not exist`, 401];
+
 	//Registering user
 	const encryptedPassword = bcrypt.hashSync(password.trim(), 10);
-	username = username.toLowerCase().trim();
 	role = role.toLowerCase().trim();
 	const user = await db.one(
 		"INSERT INTO users(name, username, password, role) VALUES($1, $2, $3, $4) returning id",
-		[name, username, encryptedPassword, role]
+		[emp[0].name, id.toString(), encryptedPassword, role]
 	);
 
 	let values_to_be_inserted = [];
@@ -122,7 +207,53 @@ async function registerAccount(userInfo) {
 		);
 	}
 
+	await db.none(`UPDATE employee set user = $1 WHERE id = $2`, [
+		true,
+		parseInt(id),
+	]);
+
 	return ["User created successfully", 200];
+}
+
+//Registering an employee
+// INPUTS - Name, Role, employee ID
+//OUTPUTS - Employee added successfully
+async function registerEmployee(employeeInfo) {
+	let { name, role, id } = { ...employeeInfo };
+
+	//Checking all fields
+	if (!name || !role || !id) return ["Error: All fields are required", 401];
+
+	//Checking if employee ID already exist
+	const employees = await db.any("SELECT * FROM employee WHERE id = $1", [id]);
+	if (employees.length) return ["Error: Employee ID already exist", 401];
+
+	//Registering employee
+	role = role.toLowerCase().trim();
+	const employee = await db.one(
+		"INSERT INTO employee(id, name, role) VALUES($1, $2, $3) returning id",
+		[id, name, role]
+	);
+
+	return ["Employee added successfully", 200];
+}
+
+//Registering a resource
+// INPUTS - Name, Type
+//OUTPUTS - Resource added successfully
+async function registerResource(resourceInfo) {
+	let { name, type, description } = { ...resourceInfo };
+
+	//Checking all fields
+	if (!name || !type) return ["Error: All fields are required", 401];
+
+	//Registering resource
+	const resource = await db.one(
+		"INSERT INTO resource(name, type, description) VALUES($1, $2, $3) returning id",
+		[name, type, description]
+	);
+
+	return ["Resource added successfully", 200];
 }
 
 //Logging into user account

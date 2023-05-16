@@ -1,4 +1,4 @@
-//Building module
+5; //Building module
 //Consists of all APIs for building page.(Adding building, getting building details)
 
 const db = require("/opt/nodejs/utils/db.js");
@@ -6,7 +6,7 @@ const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 
 exports.lambdaHandler = async (event, context) => {
 	let statusCode = 200;
-	let data;
+	let data, body;
 	let httpMethod = event.httpMethod;
 
 	try {
@@ -31,8 +31,16 @@ exports.lambdaHandler = async (event, context) => {
 				}
 				break;
 			case "POST":
-				let body = JSON.parse(event.body);
+				body = JSON.parse(event.body);
 				[data, statusCode] = await addBuilding(body.building);
+				break;
+			case "PUT":
+				body = JSON.parse(event.body);
+				[data, statusCode] = await updateBuilding(body.building);
+				break;
+			case "DELETE":
+				body = JSON.parse(event.body);
+				[data, statusCode] = await deleteBuilding(body.id);
 				break;
 			default:
 				[data, statusCode] = ["Error: Invalid request", 400];
@@ -154,6 +162,31 @@ async function addBuilding(data) {
 	return [building, 200];
 }
 
+async function updateBuilding(data) {
+	let column_names = Object.keys(data);
+	// column_names = column_names.join();
+	let values = Object.values(data);
+	let col_values = values;
+	values = values.map(
+		(value, index) =>
+			`$${index + 1}${
+				Array.isArray(value)
+					? typeof value[0] === "object" && value[0] !== null
+						? "::json[]"
+						: ""
+					: ""
+			}`
+	);
+	// values = values.join();
+	let update_statement = column_names.map(
+		(name, index) => `${name} = ${values[index]}`
+	);
+	update_statement = update_statement.join();
+	let sql_stmt = `UPDATE buildings SET ${update_statement} WHERE id=(${data.id})`;
+	await db.none(sql_stmt, col_values);
+
+	return ["Updated Successfully!", 200];
+}
 //######### HELPER FUNCTIONS #############
 
 function capitalizeFirstLetter(string) {
@@ -180,4 +213,12 @@ function groupBy(list, keyGetter) {
 		}
 	});
 	return map;
+}
+
+async function deleteBuilding(id) {
+	if (!id) throw new Error("ID Missing!");
+
+	await db.none("DELETE FROM buildings WHERE id = $1", [id]);
+
+	return ["Building removed successfully", 200];
 }

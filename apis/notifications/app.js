@@ -55,13 +55,13 @@ async function getNotifications(page = 1, limit = 10, searchText = "") {
 	let users;
 	if (searchText === "") {
 		users = await db.any(
-			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notification n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id ORDER BY n.contract_id DESC OFFSET $1 LIMIT $2`,
+			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notification n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id WHERE status='open' ORDER BY n.contract_id DESC OFFSET $1 LIMIT $2`,
 			[offset, limit]
 		);
 	} else {
 		searchText = `%${searchText}%`;
 		users = await db.any(
-			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notification n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id WHERE n.type iLIKE $1 OR cb.contract_number iLIKE $1 OR cb.building_name iLIKE $1 ORDER BY n.contract_id DESC OFFSET $2 LIMIT $3`,
+			`select n.*, cb.contract_number, cb.building_name, cb.building_id, count(n.*) OVER() AS full_count from notification n join (select c.id as id, c.contract_number as contract_number, c.building_id as building_id, b.building_name as building_name from contracts c join buildings b on c.building_id = b.id) cb on n.contract_id = cb.id WHERE (n.type iLIKE $1 OR cb.contract_number iLIKE $1 OR cb.building_name iLIKE $1) AND status='open' ORDER BY n.contract_id DESC OFFSET $2 LIMIT $3`,
 			[searchText, offset, limit]
 		);
 	}

@@ -84,10 +84,16 @@ exports.lambdaHandler = async (event, context) => {
 
 async function schedule(values) {
 	let systems = values.systems.map((system) => system.system);
-	let schedule = await db.any(
-		`SELECT distinct t.user_id, u.name FROM technician t JOIN users u ON u.id = t.user_id WHERE t.system_id IN (${systems.toString()}) AND t.user_id NOT IN (SELECT user_id from schedule where not (start > $1 OR "end" < $2))`,
+	let employee = await db.any(
+		//`SELECT distinct t.subject_id, u.name FROM technician t JOIN users u ON u.id = t.user_id WHERE t.system_id IN (${systems.toString()}) AND t.user_id NOT IN (SELECT user_id from schedule where not (start > $1 OR "end" < $2))`,
+		`SELECT distinct e.id, e.name, e.user FROM employee e WHERE e.id NOT IN (SELECT subject_id from schedule where not (start > $1 OR "end" < $2) and type = 'employee')`,
 		[values.date[1], values.date[0]]
 	);
+	let resource = await db.any(
+		`SELECT distinct r.id, r.name FROM resource r WHERE r.id NOT IN (SELECT subject_id from schedule where not (start > $1 OR "end" < $2) and type = 'resource')`,
+		[values.date[1], values.date[0]]
+	);
+	let schedule = { employee, resource };
 	return [schedule, 200];
 }
 
@@ -98,15 +104,15 @@ async function newWorkOrder(values) {
 
 	let wo = await db.any(
 		`INSERT into workorders (status, date, user_id) VALUES($1, $2, $3) returning wo_id`,
-		["Pending", date, values.assigned[0]]
+		["Pending", date, 1]
 	);
 
 	values.assigned.map((x) => {
-		values_to_be_inserted.push(`(${x}, $1, $2, $3, $4)`);
+		values_to_be_inserted.push(`(${x.subject_id},'${x.type}', $1, $2, $3, $4)`);
 	});
 
 	await db.any(
-		`INSERT into schedule (user_id, start, "end", activity, wo_id) VALUES${values_to_be_inserted.toString()}`,
+		`INSERT into schedule (subject_id, type, start, "end", activity, wo_id) VALUES${values_to_be_inserted.toString()}`,
 		[values.date[0], values.date[1], `WO# ${wo[0].wo_id}`, wo[0].wo_id]
 	);
 
