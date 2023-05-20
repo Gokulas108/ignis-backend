@@ -1,0 +1,11 @@
+{
+  "name": "superadmins",
+  "version": "1.0.0",
+  "description": "apis for SuperAdmins",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Gokulas108@gmail.com",
+  "license": "ISC"
+}

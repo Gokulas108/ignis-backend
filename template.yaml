@@ -172,6 +172,25 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #SuperAdmin API to Add/View/Modify/Delete SuperAdmins
+  SuperAdminsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/SuperAdmins/
+      Events:
+        SuperAdminsApi:
+          Type: Api
+          Properties:
+            Path: /superadmins
+            Method: ANY
+        SuperAdminApi:
+          Type: Api
+          Properties:
+            Path: /superadmins/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   ############ DEPENDENCIES ############
 
   #Common Dependencies
