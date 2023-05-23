@@ -3,7 +3,7 @@ function responseHandler(data, statusCode) {
 		statusCode: statusCode,
 		headers: {
 			"Access-Control-Allow-Headers":
-				"Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-requested-with",
+				"Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-requested-with,ignistoken",
 			"Access-Control-Allow-Origin": "*",
 			"Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE,PATCH",
 		},

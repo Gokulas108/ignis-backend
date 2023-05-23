@@ -23,7 +23,8 @@ exports.lambdaHandler = async (event, context) => {
 					path === "saveBuildingFields" ||
 					path === "getBuildingFields" ||
 					path === "dropdownAll" ||
-					path === "countries"
+					path === "countries" ||
+					path === "systemtypes"
 				) {
 					[data, statusCode] = ["Success", 200];
 				} else {
@@ -47,6 +48,8 @@ exports.lambdaHandler = async (event, context) => {
 					[data, statusCode] = await getBuildingFields();
 				} else if (path === "countries") {
 					[data, statusCode] = await getAllCountries();
+				} else if (path === "systemtypes") {
+					[data, statusCode] = await getAllSystemtypes();
 				} else {
 					[data, statusCode] = ["Error: Invalid request", 400];
 				}
@@ -210,6 +213,12 @@ async function getBuildingFields() {
 
 async function getAllCountries() {
 	const data = await db.any("SELECT country_iso, name FROM country_iso");
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
+async function getAllSystemtypes() {
+	const data = await db.any("SELECT id, name FROM systemtypes");
 	let statusCode = 200;
 	return [data, statusCode];
 }

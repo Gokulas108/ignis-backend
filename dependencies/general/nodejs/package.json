@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "jsonwebtoken": "^9.0.0",
     "pg-promise": "^10.11.1"
   }
 }

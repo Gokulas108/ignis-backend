@@ -191,6 +191,44 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #SystemMaster API to Add/View/Modify/Delete SystemMaster
+  SystemMasterAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/SystemMaster/
+      Events:
+        SystemMastersApi:
+          Type: Api
+          Properties:
+            Path: /systemmaster
+            Method: ANY
+        SystemMasterApi:
+          Type: Api
+          Properties:
+            Path: /systemmaster/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #DeviceMaster API to Add/View/Modify/Delete DeviceMaster
+  DeviceMasterAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/DeviceMaster/
+      Events:
+        DeviceMastersApi:
+          Type: Api
+          Properties:
+            Path: /devicemaster
+            Method: ANY
+        DeviceMasterApi:
+          Type: Api
+          Properties:
+            Path: /devicemaster/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   ############ DEPENDENCIES ############
 
   #Common Dependencies
