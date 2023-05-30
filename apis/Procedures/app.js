@@ -19,16 +19,18 @@ exports.lambdaHandler = async (event, context) => {
 					[data, statusCode] = await getSystem(event.pathParameters.id);
 				} else if (event.queryStringParameters) {
 					let params = event.queryStringParameters;
-					if (params.page && params.limit) {
+					if (params.page && params.limit && params.system) {
+						system = parseInt(params.system);
 						page = parseInt(params.page);
 						limit = parseInt(params.limit);
 						[data, statusCode] = await getSystems(
 							page,
 							limit,
-							params.searchText
+							params.searchText,
+							system
 						);
 					} else {
-						throw new Error("Missing Page or Limit");
+						throw new Error("Missing System, Page or Limit");
 					}
 				} else {
 					throw new Error("Missing ID");
@@ -37,7 +39,11 @@ exports.lambdaHandler = async (event, context) => {
 
 			case "POST":
 				body = JSON.parse(event.body);
-				[data, statusCode] = await addSystem(body.client);
+				[data, statusCode] = await authorize(
+					["admin"],
+					token,
+					async (id) => await addProcedure(body)
+				);
 				break;
 
 			case "PUT":
@@ -65,7 +71,9 @@ exports.lambdaHandler = async (event, context) => {
 	return response;
 };
 
-async function getSystems(page = 1, limit = 10, searchText = "") {
+async function getSystems(page = 1, limit = 10, searchText = "", system) {
+	if (!system) throw new Error("Missing System");
+
 	let offset = (page - 1) * limit;
 	let data;
 	if (searchText === "") {
@@ -98,17 +106,24 @@ async function deleteSystem(id) {
 	return ["System Successfully Deleted", 200];
 }
 
-async function addSystem({ name, general_information, createdBy = 1 }) {
-	if (!name || !createdBy) throw new Error("Missing required fields");
-
+async function addProcedure({
+	code,
+	procedure,
+	system,
+	devices,
+	activity,
+	createdBy = 1,
+}) {
+	if (!code || !createdBy || !system || !activity || !devices)
+		throw new Error("Missing required fields");
 	const date_now = new Date().toISOString();
 
 	await db.none(
-		"INSERT into systemtypes (name, general_information, createdBy, createdAt, updatedAt) VALUES ($1, $2::json[], $3, $4, $5)",
-		[name, general_information, createdBy, date_now, date_now]
+		"INSERT into procedures (code, procedure, system, devices, activity, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+		[code, procedure, system, devices, activity, createdBy, date_now, date_now]
 	);
 
-	return ["System Successfully Added", 200];
+	return ["Procedure Successfully Added", 200];
 }
 
 async function updateSystemFields({ id, general_information }) {

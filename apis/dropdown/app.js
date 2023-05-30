@@ -6,7 +6,7 @@ const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 
 exports.lambdaHandler = async (event, context) => {
 	let data = [];
-	let statusCode = 200;
+	let statusCode = 400;
 	let httpMethod = event.httpMethod;
 	let path = event.path;
 	path = path.replace(/([^\/]*\/){2}/, ""); //getting the last path from -> "/dropdown/{path}"
@@ -24,7 +24,8 @@ exports.lambdaHandler = async (event, context) => {
 					path === "getBuildingFields" ||
 					path === "dropdownAll" ||
 					path === "countries" ||
-					path === "systemtypes"
+					path === "systemtypes" ||
+					path === "devicetypes"
 				) {
 					[data, statusCode] = ["Success", 200];
 				} else {
@@ -50,6 +51,15 @@ exports.lambdaHandler = async (event, context) => {
 					[data, statusCode] = await getAllCountries();
 				} else if (path === "systemtypes") {
 					[data, statusCode] = await getAllSystemtypes();
+				} else if (path === "devicetypes") {
+					if (
+						event.queryStringParameters &&
+						event.queryStringParameters.system
+					) {
+						[data, statusCode] = await getAllDeviceTypes(
+							event.queryStringParameters.system
+						);
+					}
 				} else {
 					[data, statusCode] = ["Error: Invalid request", 400];
 				}
@@ -219,6 +229,15 @@ async function getAllCountries() {
 
 async function getAllSystemtypes() {
 	const data = await db.any("SELECT id, name FROM systemtypes");
+	let statusCode = 200;
+	return [data, statusCode];
+}
+
+async function getAllDeviceTypes(id) {
+	const data = await db.any(
+		"SELECT id, name FROM devicetypes WHERE systemid= $1 ",
+		[id]
+	);
 	let statusCode = 200;
 	return [data, statusCode];
 }
