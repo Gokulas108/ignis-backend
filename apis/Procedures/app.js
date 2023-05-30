@@ -21,13 +21,15 @@ exports.lambdaHandler = async (event, context) => {
 					let params = event.queryStringParameters;
 					if (params.page && params.limit && params.system) {
 						system = parseInt(params.system);
+						activity = params.activity;
 						page = parseInt(params.page);
 						limit = parseInt(params.limit);
-						[data, statusCode] = await getSystems(
+						[data, statusCode] = await getProcedures(
 							page,
 							limit,
 							params.searchText,
-							system
+							system,
+							activity
 						);
 					} else {
 						throw new Error("Missing System, Page or Limit");
@@ -71,21 +73,28 @@ exports.lambdaHandler = async (event, context) => {
 	return response;
 };
 
-async function getSystems(page = 1, limit = 10, searchText = "", system) {
+async function getProcedures(
+	page = 1,
+	limit = 10,
+	searchText = "",
+	system,
+	activity
+) {
 	if (!system) throw new Error("Missing System");
+	if (!activity) throw new Error("Missing Activity");
 
 	let offset = (page - 1) * limit;
 	let data;
 	if (searchText === "") {
 		data = await db.any(
-			`SELECT sys.* , sa.name as uname, sa.username as username, count(sys.*) OVER() AS full_count FROM systemtypes sys JOIN superadmins sa ON sys.createdBy = sa.id ORDER BY sys.name OFFSET $1 LIMIT $2`,
-			[offset, limit]
+			`SELECT *, count(*) OVER() AS full_count FROM procedures WHERE system = $1 AND activity = $2 OFFSET $3 LIMIT $4`,
+			[system, activity, offset, limit]
 		);
 	} else {
 		searchText = `%${searchText}%`;
 		data = await db.any(
-			`SELECT sys.* , sa.name as uname, sa.username as username, count(sys.*) OVER() AS full_count FROM systemtypes sys JOIN superadmins sa ON sys.createdBy = sa.id WHERE sys.name iLIKE $1 OR user.name iLIKE $1 OR user.username iLIKE $1 ORDER BY sys.name OFFSET $2 LIMIT $3`,
-			[searchText, offset, limit]
+			`SELECT *, count(*) OVER() AS full_count FROM procedures WHERE system = $1 AND activity = $2 OFFSET $3 LIMIT $4`,
+			[system, activity, offset, limit]
 		);
 	}
 	return [data, 200];
