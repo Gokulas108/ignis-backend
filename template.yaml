@@ -262,7 +262,7 @@ Resources:
         AHJformApi:
           Type: Api
           Properties:
-            Path: /ahjform{id}
+            Path: /ahjform/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
