@@ -19,20 +19,28 @@ exports.lambdaHandler = async (event, context) => {
           [data, statusCode] = await getProcedure(event.pathParameters.id);
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
-          if (params.page && params.limit && params.system) {
+          if (
+            params.page &&
+            params.limit &&
+            params.system &&
+            params.activity &&
+            params.ahj
+          ) {
             system = parseInt(params.system);
             activity = params.activity;
             page = parseInt(params.page);
             limit = parseInt(params.limit);
+            ahj = parseInt(params.ahj);
             [data, statusCode] = await getProcedures(
               page,
               limit,
               params.searchText,
               system,
-              activity
+              activity,
+              ahj
             );
           } else {
-            throw new Error("Missing System, Activity, Page or Limit");
+            throw new Error("Missing System, Activity, AHJ, Page or Limit");
           }
         } else {
           throw new Error("Missing ID");
@@ -78,8 +86,10 @@ async function getProcedures(
   limit = 10,
   searchText = "",
   system,
-  activity
+  activity,
+  ahj
 ) {
+  if (!ahj) throw new Error("Missing AHJ");
   if (!system) throw new Error("Missing System");
   if (!activity) throw new Error("Missing Activity");
 
@@ -87,14 +97,14 @@ async function getProcedures(
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM procedures WHERE system = $1 AND activity = $2 ORDER BY code  OFFSET $3 LIMIT $4`,
-      [system, activity, offset, limit]
+      `SELECT *, count(*) OVER() AS full_count FROM procedures WHERE system = $1 AND activity = $2 AND ahj = $3 ORDER BY code  OFFSET $4 LIMIT $5`,
+      [system, activity, ahj, offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM procedures WHERE system = $1 AND activity = $2 OR procedure iLIKE $5 OR id  iLIKE $5  ORDER BY code OFFSET $3 LIMIT $4`,
-      [system, activity, offset, limit, searchText]
+      `SELECT *, count(*) OVER() AS full_count FROM procedures WHERE system = $1 AND activity = $2 AND ahj = $3 OR procedure iLIKE $4 OR id  iLIKE $4  ORDER BY code OFFSET $5 LIMIT $6`,
+      [system, activity, ahj, searchText, offset, limit]
     );
   }
   return [data, 200];
@@ -113,6 +123,7 @@ async function deleteProcedure(id) {
 }
 
 async function addProcedure({
+  ahj,
   code,
   procedure,
   system,
@@ -120,13 +131,23 @@ async function addProcedure({
   activity,
   createdBy = 1,
 }) {
-  if (!code || !createdBy || !system || !activity || !devices)
+  if (!code || !createdBy || !system || !activity || !devices || !ahj)
     throw new Error("Missing required fields");
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into procedures (code, procedure, system, devices, activity, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-    [code, procedure, system, devices, activity, createdBy, date_now, date_now]
+    "INSERT into procedures (ahj, code, procedure, system, devices, activity, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    [
+      ahj,
+      code,
+      procedure,
+      system,
+      devices,
+      activity,
+      createdBy,
+      date_now,
+      date_now,
+    ]
   );
 
   return ["Procedure Successfully Added", 200];
