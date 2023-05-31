@@ -248,7 +248,7 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
-  #AHJform API to Add/View/Modify/Delete Procedures
+  #AHJform API to Add/View/Modify/Delete AHJs
   AHJformAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
