@@ -248,6 +248,25 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #AHJ API to Add/View/Modify/Delete Procedures
+  AHJAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/AHJ/
+      Events:
+        AHJApi:
+          Type: Api
+          Properties:
+            Path: /ahj
+            Method: ANY
+        AHJApi:
+          Type: Api
+          Properties:
+            Path: /ahj{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   ############ DEPENDENCIES ############
 
   #Common Dependencies
