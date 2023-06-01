@@ -254,7 +254,7 @@ Resources:
     Properties:
       CodeUri: apis/AHJform/
       Events:
-        AHJformApi:
+        AHJformsApi:
           Type: Api
           Properties:
             Path: /ahjform

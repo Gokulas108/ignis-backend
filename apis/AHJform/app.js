@@ -53,13 +53,13 @@ async function getAHJs(page = 1, limit = 10, searchText = "") {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT * , count(*) OVER() AS full_count FROM ahjs ORDER BY name OFFSET $1 LIMIT $2`,
+      `SELECT ahj.* , sa.name as uname, sa.username as username ,count(ahj.*)  OVER() AS full_count FROM ahjs ahj JOIN superadmins sa ON ahj.createdby = sa.id ORDER BY ahj.name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT * , count(*) OVER() AS full_count FROM ahjs WHERE name iLIKE $1 OR country iLIKE $1 ORDER BY name OFFSET $2 LIMIT $3`,
+      `SELECT ahj.* , sa.name as uname, sa.username as username ,count(ahj.*)  OVER() AS full_count FROM ahjs ahj JOIN superadmins sa ON ahj.createdby = sa.id  WHERE ahj.name iLIKE $1 OR ahj.country iLIKE $1 ORDER BY ahj.name OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -68,7 +68,10 @@ async function getAHJs(page = 1, limit = 10, searchText = "") {
 
 async function getAHJ(id) {
   let ahj_id = parseInt(id);
-  const data = await db.any("SELECT * FROM ahjs WHERE id = $1", [ahj_id]);
+  const data = await db.any(
+    "SELECT ahj.*, sa.name as uname, sa.username as username FROM ahjs ahj JOIN superadmins sa ON ahj.createdby = sa.id  WHERE id = $1",
+    [ahj_id]
+  );
   return [data, 200];
 }
 
