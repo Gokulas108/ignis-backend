@@ -158,7 +158,7 @@ async function updateProcedureFields({ id, devices }) {
   const date_now = new Date().toISOString();
 
   const query =
-    "UPDATE procedures SET devices = $1::json[], updatedat = $2 WHERE id = $3";
+    "UPDATE procedures SET devices = $1, updatedat = $2 WHERE id = $3";
   await db.none(query, [devices, date_now, id]);
 
   return ["Procedure Devices Updated", 200];

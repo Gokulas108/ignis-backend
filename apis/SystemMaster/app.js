@@ -58,7 +58,9 @@ exports.lambdaHandler = async (event, context) => {
     }
   } catch (err) {
     statusCode = 400;
-    data = err.message;
+    if (err.message.includes("devicetypes_fk"))
+      data = "There are existing devices for the system!";
+    else data = err.message;
   }
 
   response = responseHandler(data, statusCode);
