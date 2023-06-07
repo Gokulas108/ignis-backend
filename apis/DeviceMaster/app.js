@@ -6,7 +6,7 @@ exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
   let data, body;
   let httpMethod = event.httpMethod;
-
+  let token = event.headers["ignistoken"];
   try {
     switch (httpMethod) {
       case "OPTIONS":
@@ -15,18 +15,29 @@ exports.lambdaHandler = async (event, context) => {
       case "GET":
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
-          [data, statusCode] = await getDevice(event.pathParameters.id);
+          [data, statusCode] = await authorize(
+            [],
+            token,
+            async (id) => await getDevice(event.pathParameters.id),
+            true
+          );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
           if (params.page && params.limit) {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             // if (event.headers["ignistoken"])
-            [data, statusCode] = await getDevices(
-              page,
-              limit,
-              params.searchText,
-              event.headers["ignistoken"]
+            [data, statusCode] = await authorize(
+              [],
+              token,
+              async (id) =>
+                getDevices(
+                  page,
+                  limit,
+                  params.searchText,
+                  event.headers["ignistoken"]
+                ),
+              true
             );
             // else throw new Error("Missing Token");
           } else {
@@ -38,15 +49,30 @@ exports.lambdaHandler = async (event, context) => {
         break;
       case "POST":
         body = JSON.parse(event.body);
-        [data, statusCode] = await addDevice(body.client);
+        [data, statusCode] = await authorize(
+          [],
+          token,
+          async (id) => addDevice(body, id),
+          true
+        );
         break;
       case "PUT":
         body = JSON.parse(event.body);
-        [data, statusCode] = await updateDevice(body.client);
+        [data, statusCode] = await authorize(
+          [],
+          token,
+          async (id) => updateDevice(body),
+          true
+        );
         break;
       case "DELETE":
         body = JSON.parse(event.body);
-        [data, statusCode] = await deleteDevice(body.id);
+        [data, statusCode] = await authorize(
+          [],
+          token,
+          async (id) => deleteDevice(body.id),
+          true
+        );
         break;
       default:
         [data, statusCode] = ["Error: Invalid request", 400];
@@ -66,23 +92,21 @@ async function getDevices(
   searchText = "",
   token = "123"
 ) {
-  return await authorize(["admin"], token, async (id) => {
-    let offset = (page - 1) * limit;
-    let data;
-    if (searchText === "") {
-      data = await db.any(
-        `SELECT device.* , sa.name as uname, sa.username as username, sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN superadmins sa ON device.createdBy = sa.id JOIN systemtypes sys ON device.systemid = sys.id ORDER BY device.name OFFSET $1 LIMIT $2`,
-        [offset, limit]
-      );
-    } else {
-      searchText = `%${searchText}%`;
-      data = await db.any(
-        `SELECT device.* , sa.name as uname, sa.username as username, sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN superadmins sa ON device.createdBy = sa.id JOIN systemtypes sys ON device.systemid = sys.id WHERE device.name iLIKE $1 OR user.name iLIKE $1 OR user.username iLIKE $1  OR sys.name iLIKE $1 ORDER BY device.name OFFSET $2 LIMIT $3`,
-        [searchText, offset, limit]
-      );
-    }
-    return [data, 200];
-  });
+  let offset = (page - 1) * limit;
+  let data;
+  if (searchText === "") {
+    data = await db.any(
+      `SELECT device.* , sa.name as uname, sa.username as username, sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN superadmins sa ON device.createdBy = sa.id JOIN systemtypes sys ON device.systemid = sys.id ORDER BY device.name OFFSET $1 LIMIT $2`,
+      [offset, limit]
+    );
+  } else {
+    searchText = `%${searchText}%`;
+    data = await db.any(
+      `SELECT device.* , sa.name as uname, sa.username as username, sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN superadmins sa ON device.createdBy = sa.id JOIN systemtypes sys ON device.systemid = sys.id WHERE device.name iLIKE $1 OR user.name iLIKE $1 OR user.username iLIKE $1  OR sys.name iLIKE $1 ORDER BY device.name OFFSET $2 LIMIT $3`,
+      [searchText, offset, limit]
+    );
+  }
+  return [data, 200];
 }
 
 async function getDevice(id) {
@@ -100,15 +124,17 @@ async function deleteDevice(id) {
   return ["Device Successfully Deleted", 200];
 }
 
-async function addDevice({
-  name,
-  systemid,
-  general_fields,
-  inspection_fields,
-  testing_fields,
-  maintenance_fields,
-  createdBy = 1,
-}) {
+async function addDevice(
+  {
+    name,
+    systemid,
+    general_fields,
+    inspection_fields,
+    testing_fields,
+    maintenance_fields,
+  },
+  createdBy
+) {
   if (!name || !systemid || !createdBy)
     throw new Error("Missing required fields");
 

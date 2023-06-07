@@ -1,14 +1,15 @@
 {
-  "name": "superadmins",
+  "name": "superauth",
   "version": "1.0.0",
-  "description": "apis for SuperAdmins",
+  "description": "",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Gokulas108@gmail.com",
+  "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0"
   }
 }

@@ -16,16 +16,22 @@ exports.lambdaHandler = async (event, context) => {
       case "GET":
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
-          [data, statusCode] = await getSystem(event.pathParameters.id);
+          [data, statusCode] = await authorize(
+            [],
+            token,
+            async (id) => await getSystem(event.pathParameters.id),
+            true
+          );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
           if (params.page && params.limit) {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
-            [data, statusCode] = await getSystems(
-              page,
-              limit,
-              params.searchText
+            [data, statusCode] = await authorize(
+              [],
+              token,
+              async (id) => await getSystems(page, limit, params.searchText),
+              true
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -37,21 +43,32 @@ exports.lambdaHandler = async (event, context) => {
 
       case "POST":
         body = JSON.parse(event.body);
-        [data, statusCode] = await addSystem(body.client);
+        [data, statusCode] = await authorize(
+          [],
+          token,
+          async (id) => await addSystem(body.client, id),
+          true
+        );
         break;
 
       case "PUT":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          ["admin"],
+          [],
           token,
-          async (id) => await updateSystemFields(body)
+          async (id) => await updateSystemFields(body),
+          true
         );
         break;
 
       case "DELETE":
         body = JSON.parse(event.body);
-        [data, statusCode] = await deleteSystem(body.id);
+        [data, statusCode] = await authorize(
+          [],
+          token,
+          async (id) => await deleteSystem(body.id),
+          true
+        );
         break;
       default:
         [data, statusCode] = ["Error: Invalid request", 400];
@@ -100,7 +117,7 @@ async function deleteSystem(id) {
   return ["System Successfully Deleted", 200];
 }
 
-async function addSystem({ name, general_information, createdBy = 1 }) {
+async function addSystem({ name, general_information }, createdBy) {
   if (!name || !createdBy) throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();

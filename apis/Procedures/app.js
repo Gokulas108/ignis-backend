@@ -16,7 +16,12 @@ exports.lambdaHandler = async (event, context) => {
       case "GET":
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
-          [data, statusCode] = await getProcedure(event.pathParameters.id);
+          [data, statusCode] = await authorize(
+            [],
+            token,
+            async (id) => await getProcedure(event.pathParameters.id),
+            true
+          );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
           if (
@@ -31,13 +36,19 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             ahj = parseInt(params.ahj);
-            [data, statusCode] = await getProcedures(
-              page,
-              limit,
-              params.searchText,
-              system,
-              activity,
-              ahj
+            [data, statusCode] = await authorize(
+              [],
+              token,
+              async (id) =>
+                await getProcedures(
+                  page,
+                  limit,
+                  params.searchText,
+                  system,
+                  activity,
+                  ahj
+                ),
+              true
             );
           } else {
             throw new Error("Missing System, Activity, AHJ, Page or Limit");
@@ -50,9 +61,10 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          ["admin"],
+          [],
           token,
-          async (id) => await addProcedure(body)
+          async (id) => await addProcedure(body),
+          true
         );
         break;
 
@@ -67,7 +79,12 @@ exports.lambdaHandler = async (event, context) => {
 
       case "DELETE":
         body = JSON.parse(event.body);
-        [data, statusCode] = await deleteProcedure(body.id);
+        [data, statusCode] = await authorize(
+          [],
+          token,
+          async (id) => await deleteProcedure(body.id),
+          true
+        );
         break;
       default:
         [data, statusCode] = ["Error: Invalid request", 400];

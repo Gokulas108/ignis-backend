@@ -16,11 +16,14 @@ Parameters:
 Mappings:
   EnvMapping:
     dev:
-      dbHost: "{{resolve:ssm:IGNIS_DEV_DB_HOST}}"
-      dbName: "{{resolve:ssm:IGNIS_DEV_DB_NAME}}"
-      dbUser: "{{resolve:ssm:IGNIS_DEV_DB_USERNAME}}"
-      dbPass: "{{resolve:ssm:IGNIS_DEV_DB_PASSWORD}}"
-      dbPort: "{{resolve:ssm:IGNIS_DEV_DB_PORT}}"
+      dbHost: "{{resolve:ssm:SUPBASE_DEV_HOST}}"
+      dbName: "{{resolve:ssm:SUPBASE_DEV_NAME}}"
+      dbUser: "{{resolve:ssm:SUPBASE_DEV_USERNAME}}"
+      dbPass: "{{resolve:ssm:SUPBASE_DEV_PASSWORD}}"
+      dbPort: "{{resolve:ssm:SUPBASE_DEV_PORT}}"
+      secretkey: "{{resolve:ssm:DEV_SECRET_KEY}}"
+      supersecretkey: "{{resolve:ssm:DEV_SUPER_SECRET_KEY}}"
+
     prod:
       dbHost: xxxxxxxxx # Database yet to be created
       dbName: xxxxxxxxx # Database yet to be created
@@ -42,6 +45,8 @@ Globals:
         DB_USER: !FindInMap [EnvMapping, !Ref Env, dbUser]
         DB_PASS: !FindInMap [EnvMapping, !Ref Env, dbPass]
         DB_PORT: !FindInMap [EnvMapping, !Ref Env, dbPort]
+        SECRET_KEY: !FindInMap [EnvMapping, !Ref Env, secretkey]
+        SUPER_SECRET_KEY: !FindInMap [EnvMapping, !Ref Env, supersecretkey]
         ResetVariable: 0 # Used for cold start!
 
 Resources:
@@ -57,6 +62,34 @@ Resources:
           Type: Api
           Properties:
             Path: /auth/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #SuperAuth API to authenticate superadmins
+  SuperAuthAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/superauth/
+      Events:
+        SuperAuthApi:
+          Type: Api
+          Properties:
+            Path: /superauth/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #VerifyCLient API to verify client
+  VerifyClientAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/verifyclient/
+      Events:
+        VerifyClientApi:
+          Type: Api
+          Properties:
+            Path: /verifyclient
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
