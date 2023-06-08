@@ -7,6 +7,7 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
+  let clitoken = event.headers["clienttoken"];
 
   try {
     switch (httpMethod) {
@@ -18,6 +19,7 @@ exports.lambdaHandler = async (event, context) => {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
             [],
+            clitoken,
             token,
             async (id) => await getProcedure(event.pathParameters.id),
             true
@@ -38,6 +40,7 @@ exports.lambdaHandler = async (event, context) => {
             ahj = parseInt(params.ahj);
             [data, statusCode] = await authorize(
               [],
+              clitoken,
               token,
               async (id) =>
                 await getProcedures(
@@ -62,6 +65,7 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          clitoken,
           token,
           async (id) => await addProcedure(body),
           true
@@ -81,6 +85,7 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          clitoken,
           token,
           async (id) => await deleteProcedure(body.id),
           true

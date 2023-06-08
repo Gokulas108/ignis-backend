@@ -7,6 +7,7 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
+  let clitoken = event.headers["clienttoken"];
 
   try {
     switch (httpMethod) {
@@ -18,6 +19,7 @@ exports.lambdaHandler = async (event, context) => {
         if (params.id) {
           [data, statusCode] = await authorize(
             [],
+            clitoken,
             token,
             async (id) => await getClient(params.id),
             true
@@ -27,6 +29,7 @@ exports.lambdaHandler = async (event, context) => {
           limit = parseInt(params.limit);
           [data, statusCode] = await authorize(
             [],
+            clitoken,
             token,
             async (id) => await getClients(page, limit, params.searchText),
             true
@@ -37,6 +40,7 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          clitoken,
           token,
           async (id) => await addClient(body.client, id),
           true
@@ -46,8 +50,19 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          clitoken,
           token,
           async (id) => await deleteClient(body.id),
+          true
+        );
+        break;
+      case "PUT":
+        body = JSON.parse(event.body);
+        [data, statusCode] = await authorize(
+          [],
+          clitoken,
+          token,
+          async (id) => await updateClient(body),
           true
         );
         break;
@@ -109,4 +124,17 @@ async function deleteClient(id) {
   await db.none("DELETE FROM client WHERE id = $1", [id]);
 
   return ["Client Successfully Removed", 200];
+}
+
+async function updateClient({ id, cliname }) {
+  if (!id) throw new Error("ID Missing!");
+  const date_now = new Date().toISOString();
+
+  await db.none("UPDATE client SET name = $1, updatedat = $2 WHERE id = $2", [
+    cliname,
+    date_now,
+    id,
+  ]);
+
+  return ["Client Successfully Updated", 200];
 }

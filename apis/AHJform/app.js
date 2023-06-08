@@ -7,6 +7,7 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
+  let clitoken = event.headers["clienttoken"];
 
   try {
     switch (httpMethod) {
@@ -18,6 +19,7 @@ exports.lambdaHandler = async (event, context) => {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
             [],
+            clitoken,
             token,
             async (id) => await getAHJ(event.pathParameters.id),
             true
@@ -29,6 +31,7 @@ exports.lambdaHandler = async (event, context) => {
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
               [],
+              clitoken,
               token,
               async (id) => await getAHJs(page, limit, params.searchText),
               true
@@ -44,6 +47,7 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          clitoken,
           token,
           async (id) => await addAHJ(body, id),
           true
@@ -53,6 +57,7 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          clitoken,
           token,
           async (id) => await deleteAHJ(body.id),
           true
