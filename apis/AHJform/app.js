@@ -1,10 +1,12 @@
 const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
+const authorize = require("/opt/nodejs/utils/authorize.js");
 
 exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
   let data, body;
   let httpMethod = event.httpMethod;
+  let token = event.headers["ignistoken"];
 
   try {
     switch (httpMethod) {

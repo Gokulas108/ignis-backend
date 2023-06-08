@@ -1,5 +1,6 @@
 const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
+const jwt = require("jsonwebtoken");
 
 exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
@@ -35,10 +36,19 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
+function generateToken(client_id) {
+  if (!client_id) return null;
+  return jwt.sign(client_id, process.env.SECRET_KEY, {
+    expiresIn: "8h",
+  });
+}
+
 async function verifyClient(client_id) {
   data = await db.any("SELECT * FROM client WHERE client_id = $1", [client_id]);
 
-  if (data === undefined || data.length === 0)
-    return ["Client does not exist", 400];
-  else return [data, 200];
+  if (!data?.length) return ["Client does not exist", 400];
+  else {
+    client_token = generateToken({ client_id: data[0].client_id });
+    return [{ data, client_token }, 200];
+  }
 }
