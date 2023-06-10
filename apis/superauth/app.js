@@ -47,10 +47,11 @@ exports.lambdaHandler = async (event, context) => {
 //Inputs - username, password
 //Output - Logged in
 async function login(userInfo) {
-  let { username, password } = { ...userInfo };
+  let { username, password, client_id } = { ...userInfo };
 
   //Checking required fields
   if (!username || !password) return ["Error: All fields are required", 401];
+  if (!client_id) return ["Error: Client ID Missing", 401];
 
   //Checking if user exists and comparing password
   const user = await db.oneOrNone(
@@ -69,9 +70,11 @@ async function login(userInfo) {
       first_login: user.first_login,
     };
     const token = generateToken(new_user);
+    const clitoken = generateClientToken({ client_id: client_id });
     const responseBody = {
       user: new_user,
       token,
+      clitoken,
     };
     return [responseBody, 200];
   }
@@ -103,6 +106,13 @@ function verify({ user, token }) {
 function generateToken(user) {
   if (!user) return null;
   return jwt.sign(user, process.env.SUPER_SECRET_KEY, {
+    expiresIn: "8h",
+  });
+}
+
+function generateClientToken(client) {
+  if (!client) return null;
+  return jwt.sign(client, process.env.SECRET_KEY, {
     expiresIn: "8h",
   });
 }

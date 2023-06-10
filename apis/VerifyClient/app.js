@@ -36,19 +36,11 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-function generateToken(client_id) {
-  if (!client_id) return null;
-  return jwt.sign(client_id, process.env.SECRET_KEY, {
-    expiresIn: "8h",
-  });
-}
-
 async function verifyClient(client_id) {
   data = await db.any("SELECT * FROM client WHERE client_id = $1", [client_id]);
 
   if (!data?.length) return ["Client does not exist", 400];
   else {
-    client_token = generateToken({ client_id: data[0].client_id });
-    return [{ data, client_token }, 200];
+    return [data, 200];
   }
 }
