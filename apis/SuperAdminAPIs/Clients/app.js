@@ -130,7 +130,7 @@ async function updateClient({ id, cliname }) {
   if (!id) throw new Error("ID Missing!");
   const date_now = new Date().toISOString();
 
-  await db.none("UPDATE client SET name = $1, updatedat = $2 WHERE id = $2", [
+  await db.none("UPDATE client SET name = $1, updatedat = $2 WHERE id = $3", [
     cliname,
     date_now,
     id,
