@@ -1,5 +1,6 @@
 const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
+const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -78,6 +79,7 @@ async function login(userInfo) {
       token,
       clitoken,
     };
+    await addclienttransaction(user.id, client_id, "Login");
     return [responseBody, 200];
   }
 }
