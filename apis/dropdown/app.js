@@ -11,6 +11,8 @@ exports.lambdaHandler = async (event, context) => {
   let statusCode = 400;
   let httpMethod = event.httpMethod;
   let path = event.path;
+  let token = event.headers["ignistoken"];
+  let clitoken = event.headers["clienttoken"];
   path = path.replace(/([^\/]*\/){2}/, ""); //getting the last path from -> "/dropdown/{path}"
 
   try {
@@ -27,7 +29,9 @@ exports.lambdaHandler = async (event, context) => {
           path === "dropdownAll" ||
           path === "countries" ||
           path === "systemtypes" ||
-          path === "devicetypes"
+          path === "devicetypes" ||
+          path === "clientRoles" ||
+          path === "authCodes"
         ) {
           [data, statusCode] = ["Success", 200];
         } else {
@@ -259,7 +263,7 @@ async function getAllDeviceTypes(id) {
 }
 
 async function getAllRoles(client_id) {
-  const data = await db.one(`SELECT id, role FROM ${client_id}_user_roles`);
+  const data = await db.any(`SELECT id, role FROM ${client_id}_user_roles`);
   let statusCode = 200;
   return [data, statusCode];
 }

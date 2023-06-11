@@ -55,7 +55,7 @@ async function login(userInfo) {
 
   //Checking if user exists and comparing password
   const user = await db.oneOrNone(
-    `SELECT * FROM ${client_id}_users WHERE username = $1`,
+    `SELECT cu.*, cr.authorizations as authorizations FROM ${client_id}_users cu JOIN ${client_id}_user_roles cr ON cu.role = cr.id WHERE cu.username = $1`,
     [username]
   );
   if (!user || !user.username) return ["Error: No User found", 401];
@@ -67,6 +67,8 @@ async function login(userInfo) {
       id: user.id,
       username: user.username,
       name: user.name,
+      role: user.role,
+      authorizations: user.authorizations,
       first_login: user.first_login,
     };
     const token = generateToken(new_user);

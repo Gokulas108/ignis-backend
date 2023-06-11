@@ -126,12 +126,12 @@ async function deleteClient(id) {
   return ["Client Successfully Removed", 200];
 }
 
-async function updateClient({ id, cliname }) {
+async function updateClient({ id, name }) {
   if (!id) throw new Error("ID Missing!");
   const date_now = new Date().toISOString();
 
   await db.none("UPDATE client SET name = $1, updatedat = $2 WHERE id = $3", [
-    cliname,
+    name,
     date_now,
     id,
   ]);

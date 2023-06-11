@@ -23,7 +23,7 @@ async function authorize(
         console.log(err);
         return ["Invalid Token", 401];
       }
-      if (!superadmin && !res.roles.includes(accesscode))
+      if (!superadmin && !res.authorizations.includes(accesscode))
         return ["Not Authorized", 403];
       return await apifunction(res.id, verified_client.client_id);
     }
