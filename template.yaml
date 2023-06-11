@@ -52,16 +52,16 @@ Globals:
 Resources:
   ############ LAMBDA FUNCTIONS ############
 
-  #Auth API to authenticate users
-  AuthAPIFunction:
+  #ClientAuth API to authenticate ClientUsers
+  ClientAuthAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/auth/
+      CodeUri: apis/clientapis/clientauth/
       Events:
-        AuthApi:
+        ClientAuthApi:
           Type: Api
           Properties:
-            Path: /auth/{proxy+}
+            Path: /clientauth/{proxy+}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -70,7 +70,7 @@ Resources:
   SuperAuthAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/superauth/
+      CodeUri: apis/superadminapis/superauth/
       Events:
         SuperAuthApi:
           Type: Api
@@ -84,7 +84,7 @@ Resources:
   VerifyClientAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/verifyclient/
+      CodeUri: apis/superadminapis/verifyclient/
       Events:
         VerifyClientApi:
           Type: Api
@@ -122,11 +122,11 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
-  #Clients API to Add/View/Modify/Delete buildings
+  #Clients API to Add/View/Modify/Delete Clients
   ClientsAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/clients/
+      CodeUri: apis/superadminapis/clients/
       Events:
         ClientsApi:
           Type: Api
@@ -209,7 +209,7 @@ Resources:
   SuperAdminsAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/SuperAdmins/
+      CodeUri: apis/superadminapis/SuperAdmins/
       Events:
         SuperAdminsApi:
           Type: Api
@@ -224,11 +224,49 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #ClientUsers API to Add/View/Modify/Delete ClientUsers
+  ClientUsersAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientUsers/
+      Events:
+        ClientUsersApi:
+          Type: Api
+          Properties:
+            Path: /clientusers
+            Method: ANY
+        ClientUserApi:
+          Type: Api
+          Properties:
+            Path: /clientusers/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientRoles API to Add/View/Modify/Delete ClientRoles
+  ClientRolesAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientRoles/
+      Events:
+        ClientRolesApi:
+          Type: Api
+          Properties:
+            Path: /clientroles
+            Method: ANY
+        ClientRoleApi:
+          Type: Api
+          Properties:
+            Path: /clientroles/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #SystemMaster API to Add/View/Modify/Delete SystemMaster
   SystemMasterAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/SystemMaster/
+      CodeUri: apis/superadminapis/SystemMaster/
       Events:
         SystemMastersApi:
           Type: Api
@@ -247,7 +285,7 @@ Resources:
   DeviceMasterAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/DeviceMaster/
+      CodeUri: apis/superadminapis/DeviceMaster/
       Events:
         DeviceMastersApi:
           Type: Api
@@ -266,7 +304,7 @@ Resources:
   ProceduresAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/Procedures/
+      CodeUri: apis/superadminapis/Procedures/
       Events:
         ProceduresApi:
           Type: Api
@@ -285,7 +323,7 @@ Resources:
   AHJformAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/AHJform/
+      CodeUri: apis/superadminapis/AHJform/
       Events:
         AHJformsApi:
           Type: Api

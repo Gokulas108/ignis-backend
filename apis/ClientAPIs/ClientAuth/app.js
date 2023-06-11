@@ -55,7 +55,7 @@ async function login(userInfo) {
 
   //Checking if user exists and comparing password
   const user = await db.oneOrNone(
-    "SELECT * FROM superadmins WHERE username = $1",
+    `SELECT * FROM ${client_id}_users WHERE username = $1`,
     [username]
   );
   if (!user || !user.username) return ["Error: No User found", 401];
@@ -83,18 +83,17 @@ async function login(userInfo) {
 //Verifying Token
 //Input - Token
 function verify({ user, token }) {
-  if (!user || !user.username || !user.name)
-    return [{ verified: false, mssg: "Incorrect request body" }, 400];
+  if (!user || !user.username || !user.name) return ["Invalid Token", 401];
 
-  verification = jwt.verify(token, process.env.SUPER_SECRET_KEY, (err, res) => {
-    if (err) return { verified: false, mssg: "Invalid token" };
+  verification = jwt.verify(token, process.env.SECRET_KEY, (err, res) => {
+    if (err) return "Invalid Token";
     if (res.username !== user.username || res.name !== user.name)
-      return { verified: false, mssg: "Invalid token" };
+      return "Invalid Token";
     return { verified: true, mssg: "Verified" };
   });
 
   if (!verification.verified) {
-    return [verification, 400];
+    return [verification, 401];
   } else {
     return [verification, 200];
   }
@@ -105,7 +104,7 @@ function verify({ user, token }) {
 //Output - Token
 function generateToken(user) {
   if (!user) return null;
-  return jwt.sign(user, process.env.SUPER_SECRET_KEY, {
+  return jwt.sign(user, process.env.SECRET_KEY, {
     expiresIn: "8h",
   });
 }
@@ -121,7 +120,7 @@ function generateClientToken(client) {
 //Inputs - new password, confirm password
 //Outpus - password changed successfully
 async function resetPasswordFirstTime(body) {
-  let { new_password, confirm_password, user } = { ...body };
+  let { new_password, confirm_password, user, client_id } = { ...body };
 
   //Checking required fields
   if (!new_password || !confirm_password)
@@ -133,7 +132,7 @@ async function resetPasswordFirstTime(body) {
     const encryptedPassword = bcrypt.hashSync(new_password.trim(), 10);
     if (user.first_login) {
       await db.none(
-        "UPDATE superadmins SET password = $1, first_login = $2 WHERE username = $3",
+        `UPDATE ${client_id}_users SET password = $1, first_login = $2 WHERE username = $3`,
         [encryptedPassword, false, username]
       );
       return ["Password changed successfully", 200];

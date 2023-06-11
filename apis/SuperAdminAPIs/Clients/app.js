@@ -83,13 +83,13 @@ async function getClients(page = 1, limit = 10, searchText = "") {
   let users;
   if (searchText === "") {
     users = await db.any(
-      `SELECT cli.id as id, cli.name AS name, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.id ORDER BY id DESC OFFSET $1 LIMIT $2`,
+      `SELECT cli.id as id, cli.name AS name, cli.client_id AS client_id, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.id ORDER BY id DESC OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     users = await db.any(
-      `SELECT cli.id as id, cli.name AS name, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.id  WHERE cli.name iLIKE $1 OR co.name iLIKE $1 OR sa.username iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+      `SELECT cli.id as id, cli.name AS name, cli.client_id AS client_id, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.id  WHERE cli.name iLIKE $1 OR co.name iLIKE $1 OR sa.username iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
