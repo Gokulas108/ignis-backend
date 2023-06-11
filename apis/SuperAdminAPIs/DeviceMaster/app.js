@@ -65,7 +65,7 @@ exports.lambdaHandler = async (event, context) => {
         [data, statusCode] = await authorize(
           [],
           token,
-          async (id) => updateDevice(body),
+          async (id) => updateDevice(body, id),
           true
         );
         break;
@@ -145,7 +145,7 @@ async function addDevice(
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into devicetypes (name, systemid, general_fields, inspection_fields ,testing_fields, maintenance_fields, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3::json[], $4::json[], $5::json[],$6::json[], $7, $8, $9)",
+    "INSERT into devicetypes (name, systemid, general_fields, inspection_fields ,testing_fields, maintenance_fields, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3::json[], $4::json[], $5::json[],$6::json[], $7, $7, $8, $9)",
     [
       name,
       systemid,
@@ -162,23 +162,21 @@ async function addDevice(
   return ["Device Successfully Added", 200];
 }
 
-async function updateDevice({
-  id,
-  general_fields,
-  inspection_fields,
-  testing_fields,
-  maintenance_fields,
-}) {
+async function updateDevice(
+  { id, general_fields, inspection_fields, testing_fields, maintenance_fields },
+  updatedby
+) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "UPDATE devicetypes SET general_fields =  $1::json[], inspection_fields = $2::json[] ,testing_fields = $3::json[] ,maintenance_fields = $4::json[] , updatedAt = $5 WHERE id = $6 ",
+    "UPDATE devicetypes SET general_fields =  $1::json[], inspection_fields = $2::json[] ,testing_fields = $3::json[] ,maintenance_fields = $4::json[] , updatedAt = $5 , updatedby = $6 WHERE id = $7 ",
     [
       general_fields,
       inspection_fields,
       testing_fields,
       maintenance_fields,
       date_now,
+      updatedby,
       id,
     ]
   );

@@ -115,7 +115,7 @@ async function addAHJ({ name, country }, createdBy) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into ahjs (name, country,  createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5)",
+    "INSERT into ahjs (name, country,  createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $5)",
     [name, country, createdBy, date_now, date_now]
   );
 

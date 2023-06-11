@@ -61,7 +61,7 @@ exports.lambdaHandler = async (event, context) => {
           [],
           clitoken,
           token,
-          async (id) => await updateSystemFields(body),
+          async (id) => await updateSystemFields(body, id),
           true
         );
         break;
@@ -129,20 +129,20 @@ async function addSystem({ name, general_information }, createdBy) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into systemtypes (name, general_information, createdBy, createdAt, updatedAt) VALUES ($1, $2::json[], $3, $4, $5)",
+    "INSERT into systemtypes (name, general_information, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2::json[], $3, $3, $4, $5)",
     [name, general_information, createdBy, date_now, date_now]
   );
 
   return ["System Successfully Added", 200];
 }
 
-async function updateSystemFields({ id, general_information }) {
+async function updateSystemFields({ id, general_information }, updatedby) {
   if (!id) throw new Error("Missing Id");
   const date_now = new Date().toISOString();
 
   const query =
-    "UPDATE systemtypes SET general_information = $1::json[], updatedat = $2 WHERE id = $3";
-  await db.none(query, [general_information, date_now, id]);
+    "UPDATE systemtypes SET general_information = $1::json[], updatedat = $2, updatedby = $3 WHERE id = $4";
+  await db.none(query, [general_information, date_now, updatedby, id]);
 
   return ["System General Fields Updated", 200];
 }

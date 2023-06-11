@@ -112,8 +112,8 @@ async function addClientRole({ role, authorizations }, createdBy, client_id) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    `INSERT into ${client_id}_user_roles (role, authorizations, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5)`,
-    [role, authorizations, createdBy, date_now, date_now]
+    `INSERT into ${client_id}_user_roles (role, authorizations, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $5)`,
+    [role, authorizations, createdBy, updatedby, date_now, date_now]
   );
 
   return ["Role Successfully Added", 200];

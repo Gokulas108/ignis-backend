@@ -62,7 +62,7 @@ exports.lambdaHandler = async (event, context) => {
           [],
           clitoken,
           token,
-          async (id) => await updateClient(body),
+          async (id) => await updateClient(body, id),
           true
         );
         break;
@@ -111,7 +111,7 @@ async function addClient({ name, clientId, country }, createdby) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into client (name, client_id, country, createdby, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $6)",
+    "INSERT into client (name, client_id, country, createdby, updatedby, createdat, updatedat) VALUES ($1, $2, $3, $4, $4, $5, $6)",
     [name, clientId, country, createdby, date_now, date_now]
   );
 
@@ -126,15 +126,14 @@ async function deleteClient(id) {
   return ["Client Successfully Removed", 200];
 }
 
-async function updateClient({ id, name }) {
+async function updateClient({ id, name }, updatedby) {
   if (!id) throw new Error("ID Missing!");
   const date_now = new Date().toISOString();
 
-  await db.none("UPDATE client SET name = $1, updatedat = $2 WHERE id = $3", [
-    name,
-    date_now,
-    id,
-  ]);
+  await db.none(
+    "UPDATE client SET name = $1, updatedat = $2, updatedby = $3 WHERE id = $4",
+    [name, date_now, updatedby, id]
+  );
 
   return ["Client Successfully Updated", 200];
 }

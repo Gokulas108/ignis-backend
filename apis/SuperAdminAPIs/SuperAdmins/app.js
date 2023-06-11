@@ -115,7 +115,7 @@ async function addSuperAdmin(
   const encryptedPassword = bcrypt.hashSync(password.trim(), 10);
 
   await db.none(
-    "INSERT into superadmins (name, username, password,  createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6)",
+    "INSERT into superadmins (name, username, password,  createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $6)",
     [name, username, encryptedPassword, createdBy, date_now, date_now]
   );
 

@@ -118,7 +118,7 @@ async function addClientUser(
   const encryptedPassword = bcrypt.hashSync(password.trim(), 10);
 
   await db.none(
-    `INSERT into ${client_id}_users (name, username, password, role, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT into ${client_id}_users (name, username, password, role, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $5, $6, $7)`,
     [name, username, encryptedPassword, role, createdBy, date_now, date_now]
   );
 

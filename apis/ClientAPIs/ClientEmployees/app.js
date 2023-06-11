@@ -68,7 +68,7 @@ exports.lambdaHandler = async (event, context) => {
           authcode.UPDATE_EMPLOYEE,
           clitoken,
           token,
-          async (id, client_id) => await updateEmployee(body, client_id)
+          async (id, client_id) => await updateEmployee(body, id, client_id)
         );
         break;
       default:
@@ -121,22 +121,26 @@ async function addEmployee(
   const date_now = new Date().toISOString();
 
   await db.none(
-    `INSERT into ${client_id}_employees (id, full_name, designation, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT into ${client_id}_employees (id, full_name, designation, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $6)`,
     [id, full_name, designation, createdBy, date_now, date_now]
   );
 
   return ["Employee Successfully Added", 200];
 }
 
-async function updateEmployee({ id, full_name, designation }, client_id) {
+async function updateEmployee(
+  { id, full_name, designation },
+  updatedby,
+  client_id
+) {
   if (!id || !full_name || !designation)
     throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    `UPDATE ${client_id}_employees SET full_name = $1, designation = $2, updatedAt = $3 WHERE id = $4`,
-    [full_name, designation, date_now, id]
+    `UPDATE ${client_id}_employees SET full_name = $1, designation = $2, updatedAt = $3, updatedby = $4 WHERE id = $5`,
+    [full_name, designation, date_now, updatedby, id]
   );
 
   return ["Employee Successfully Updatedbuilb", 200];

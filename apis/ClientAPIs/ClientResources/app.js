@@ -68,7 +68,7 @@ exports.lambdaHandler = async (event, context) => {
           authcode.UPDATE_RESOURCE,
           clitoken,
           token,
-          async (id, client_id) => await updateResource(body, client_id)
+          async (id, client_id) => await updateResource(body, id, client_id)
         );
         break;
       default:
@@ -117,22 +117,26 @@ async function addResource({ name, type, description }, createdBy, client_id) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    `INSERT into ${client_id}_resources (name, type, description, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT into ${client_id}_resources (name, type, description, createdBy, updatedby createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $6)`,
     [name, type, description, createdBy, date_now, date_now]
   );
 
   return ["Resource Successfully Added", 200];
 }
 
-async function updateResource({ id, name, type, description }, client_id) {
+async function updateResource(
+  { id, name, type, description },
+  updatedby,
+  client_id
+) {
   if (!id || !name || !type || !description)
     throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    `UPDATE ${client_id}_resources SET name = $1, description = $2, type = $3, updatedAt = $4 WHERE id = $5`,
-    [name, type, description, date_now, id]
+    `UPDATE ${client_id}_resources SET name = $1, description = $2, type = $3, updatedAt = $4, updatedby = $5 WHERE id = $6`,
+    [name, type, description, date_now, updatedby, id]
   );
 
   return ["Resource Successfully Updatedbuilb", 200];

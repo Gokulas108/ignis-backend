@@ -77,7 +77,7 @@ exports.lambdaHandler = async (event, context) => {
         [data, statusCode] = await authorize(
           ["admin"],
           token,
-          async (id) => await updateProcedureFields(body)
+          async (id) => await updateProcedureFields(body, id)
         );
         break;
 
@@ -158,7 +158,7 @@ async function addProcedure({
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into procedures (ahj, code, procedure, system, devices, activity, createdBy, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+    "INSERT into procedures (ahj, code, procedure, system, devices, activity, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9)",
     [
       ahj,
       code,
@@ -175,13 +175,13 @@ async function addProcedure({
   return ["Procedure Successfully Added", 200];
 }
 
-async function updateProcedureFields({ id, devices }) {
+async function updateProcedureFields({ id, devices }, updatedby) {
   if (!id) throw new Error("Missing Id");
   const date_now = new Date().toISOString();
 
   const query =
-    "UPDATE procedures SET devices = $1, updatedat = $2 WHERE id = $3";
-  await db.none(query, [devices, date_now, id]);
+    "UPDATE procedures SET devices = $1, updatedat = $2, updatedby = $3 WHERE id = $4";
+  await db.none(query, [devices, date_now, updatedby, id]);
 
   return ["Procedure Devices Updated", 200];
 }
