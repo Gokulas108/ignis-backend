@@ -19,11 +19,14 @@ async function authorize(
     token,
     superadmin ? process.env.SUPER_SECRET_KEY : process.env.SECRET_KEY,
     async (err, res) => {
+      let authorizations = JSON.parse(res.authorizations);
+      console.log(res);
       if (err) {
         console.log(err);
         return ["Invalid Token", 401];
       }
-      if (!superadmin && !res.authorizations.includes(accesscode))
+
+      if (!superadmin && !authorizations.includes(accesscode))
         return ["Not Authorized", 403];
       return await apifunction(res.id, verified_client.client_id);
     }

@@ -68,7 +68,7 @@ async function login(userInfo) {
       username: user.username,
       name: user.name,
       role: user.role,
-      authorizations: user.authorizations,
+      authorizations: JSON.stringify(user.authorizations),
       first_login: user.first_login,
     };
     const token = generateToken(new_user);

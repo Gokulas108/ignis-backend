@@ -6,4 +6,12 @@ module.exports = {
   ADD_USER_ROLE: "cr01",
   DELETE_USER_ROLE: "cr02",
   GET_USER_ROLE: "cr03",
+  ADD_EMPLOYEE: "ey01",
+  DELETE_EMPLOYEE: "ey02",
+  GET_EMPLOYEE: "ey03",
+  UPDATE_EMPLOYEE: "ey04",
+  ADD_RESOURCE: "rs01",
+  DELETE_RESOURCE: "rs02",
+  GET_RESOURCE: "rs03",
+  UPDATE_RESOURCE: "rs04",
 };

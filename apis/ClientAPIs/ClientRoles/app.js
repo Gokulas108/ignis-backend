@@ -19,7 +19,7 @@ exports.lambdaHandler = async (event, context) => {
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
-            [authcode.GET_USER_ROLE],
+            authcode.GET_USER_ROLE,
             clitoken,
             token,
             async (id, client_id) =>
@@ -31,7 +31,7 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
-              [authcode.GET_USER_ROLE],
+              authcode.GET_USER_ROLE,
               clitoken,
               token,
               async (id) =>
@@ -47,7 +47,7 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          [authcode.ADD_USER_ROLE],
+          authcode.ADD_USER_ROLE,
           clitoken,
           token,
           async (id, client_id) => await addClientRole(body, id, client_id)
@@ -56,7 +56,7 @@ exports.lambdaHandler = async (event, context) => {
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          [authcode.DELETE_USER_ROLE],
+          authcode.DELETE_USER_ROLE,
           clitoken,
           token,
           async (id, client_id) => await deleteClientRole(body.id, client_id)

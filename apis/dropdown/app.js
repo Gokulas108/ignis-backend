@@ -59,14 +59,14 @@ exports.lambdaHandler = async (event, context) => {
           [data, statusCode] = await getAllSystemtypes();
         } else if (path === "clientRoles") {
           [data, statusCode] = await authorize(
-            [authcode.GET_USER_ROLE],
+            authcode.GET_USER_ROLE,
             clitoken,
             token,
             async (id, client_id) => await getAllRoles(client_id)
           );
         } else if (path === "authCodes") {
           [data, statusCode] = await authorize(
-            [authcode.GET_AUTH_CODES],
+            authcode.GET_AUTH_CODES,
             clitoken,
             token,
             async (id, client_id) => await getAllAuthCodes()
@@ -269,7 +269,7 @@ async function getAllRoles(client_id) {
 }
 
 async function getAllAuthCodes() {
-  const data = await db.one(`SELECT name, authorization FROM auth_codes`);
+  const data = await db.any(`SELECT * FROM auth_codes ORDER BY module`);
   let statusCode = 200;
   return [data, statusCode];
 }

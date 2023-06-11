@@ -262,6 +262,44 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #ClientEmployees API to Add/View/Modify/Delete ClientEmployees
+  ClientEmployeesAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientEmployees/
+      Events:
+        ClientEmployeesApi:
+          Type: Api
+          Properties:
+            Path: /clientemployees
+            Method: ANY
+        ClientEmployeeApi:
+          Type: Api
+          Properties:
+            Path: /clientemployees/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientResources API to Add/View/Modify/Delete ClientResources
+  ClientResourcesAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientResources/
+      Events:
+        ClientResourcesApi:
+          Type: Api
+          Properties:
+            Path: /clientresources
+            Method: ANY
+        ClientResourceApi:
+          Type: Api
+          Properties:
+            Path: /clientresources/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #SystemMaster API to Add/View/Modify/Delete SystemMaster
   SystemMasterAPIFunction:
     Type: AWS::Serverless::Function
