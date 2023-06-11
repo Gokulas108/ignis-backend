@@ -34,7 +34,7 @@ exports.lambdaHandler = async (event, context) => {
               authcode.GET_RESOURCE,
               clitoken,
               token,
-              async (id) =>
+              async (id, client_id) =>
                 await getResources(page, limit, params.searchText, client_id)
             );
           } else {
@@ -111,7 +111,7 @@ async function getResource(id, client_id) {
 }
 
 async function addResource({ name, type, description }, createdBy, client_id) {
-  if (!id || !name || !type || !createdBy || !description)
+  if (!name || !type || !description || !createdBy)
     throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();

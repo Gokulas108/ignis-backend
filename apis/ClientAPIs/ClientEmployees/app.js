@@ -34,7 +34,7 @@ exports.lambdaHandler = async (event, context) => {
               authcode.GET_EMPLOYEE,
               clitoken,
               token,
-              async (id) =>
+              async (id, client_id) =>
                 await getEmployees(page, limit, params.searchText, client_id)
             );
           } else {

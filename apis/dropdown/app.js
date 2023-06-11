@@ -31,6 +31,7 @@ exports.lambdaHandler = async (event, context) => {
           path === "systemtypes" ||
           path === "devicetypes" ||
           path === "clientRoles" ||
+          path === "employees" ||
           path === "authCodes"
         ) {
           [data, statusCode] = ["Success", 200];
@@ -70,6 +71,13 @@ exports.lambdaHandler = async (event, context) => {
             clitoken,
             token,
             async (id, client_id) => await getAllAuthCodes()
+          );
+        } else if (path === "employees") {
+          [data, statusCode] = await authorize(
+            authcode.GET_EMPLOYEE,
+            clitoken,
+            token,
+            async (id, client_id) => await getAllEmployees(client_id)
           );
         } else if (path === "devicetypes") {
           if (
@@ -263,13 +271,21 @@ async function getAllDeviceTypes(id) {
 }
 
 async function getAllRoles(client_id) {
-  const data = await db.any(`SELECT id, role FROM ${client_id}_user_roles`);
+  const data = await db.any(
+    `SELECT id, role, authorizations FROM ${client_id}_user_roles`
+  );
   let statusCode = 200;
   return [data, statusCode];
 }
 
 async function getAllAuthCodes() {
   const data = await db.any(`SELECT * FROM auth_codes ORDER BY module`);
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+async function getAllEmployees(client_id) {
+  const data = await db.any(`SELECT id, full_name FROM ${client_id}_employees`);
   let statusCode = 200;
   return [data, statusCode];
 }
