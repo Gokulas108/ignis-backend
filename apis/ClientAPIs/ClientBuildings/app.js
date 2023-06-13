@@ -89,13 +89,13 @@ async function getBuildings(page = 1, limit = 10, searchText = "", client_id) {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings ORDER BY name OFFSET $1 LIMIT $2`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings ORDER BY building_name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings WHERE name iLIKE $1 OR type iLIKE $1 OR description iLIKE $1 ORDER BY name OFFSET $2 LIMIT $3`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings WHERE building_name iLIKE $1 OR building_area iLIKE $1 OR contact_number iLIKE $1 ORDER BY building_name OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }

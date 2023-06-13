@@ -191,14 +191,12 @@ async function getAllDropdowns(client_id) {
   let [occupancyClassification] = await getOccupancyClassifications(client_id);
   let [hazardClassification] = await getHazardClassifications(client_id);
   let [typeOfConstruction] = await getTypeOfConstruction(client_id);
-  let [contractType] = await getContractType(client_id);
   let [engineers] = await getEngineers(client_id);
   let [add_building_required_fields] = await getBuildingFields(client_id);
   let data = {
     occupancyClassification,
     hazardClassification,
     typeOfConstruction,
-    contractType,
     add_building_required_fields,
     engineers,
   };
@@ -207,10 +205,11 @@ async function getAllDropdowns(client_id) {
 }
 
 //Getting data from Engineers table
-async function getEngineers() {
-  const users = await db.any(`SELECT id, name FROM users WHERE role = $1`, [
-    "engineer",
-  ]);
+async function getEngineers(client_id) {
+  const users = await db.any(
+    `SELECT id, name FROM ${client_id}_users WHERE role = $1`,
+    ["engineer"]
+  );
   let data = users;
   let statusCode = 200;
   return [data, statusCode];
@@ -300,18 +299,20 @@ async function addNewContractType(new_value, createdby, client_id) {
   return ["Sucessfully Inserted", statusCode];
 }
 
-async function saveRequiredfields(fields) {
+async function saveRequiredfields(fields, updatedby, client_id) {
+  const date_now = new Date().toISOString();
   await db.none(
-    "UPDATE client SET add_building_required_fields = $1 WHERE id = 28",
-    [fields]
+    `UPDATE ${client_id}_configurations SET configuration = $1, updatedat = $2, updatedby = $3  WHERE name = $4`,
+    [fields, date_now, updatedby, "building_required_fields"]
   );
   let statusCode = 200;
   return ["Sucessfully Updated", statusCode];
 }
 
-async function getBuildingFields() {
+async function getBuildingFields(client_id) {
   const data = await db.one(
-    "SELECT add_building_required_fields FROM client where id = 28"
+    `SELECT configuration FROM ${client_id}_configurations WHERE name = $1`,
+    ["building_required_fields"]
   );
   let statusCode = 200;
   return [data, statusCode];

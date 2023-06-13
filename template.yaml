@@ -309,12 +309,12 @@ Resources:
         ClientBuildingsApi:
           Type: Api
           Properties:
-            Path: /Clientbuildings
+            Path: /clientbuildings
             Method: ANY
-        ClientResourceApi:
+        ClientBuildingApi:
           Type: Api
           Properties:
-            Path: /Clientbuildings/{id}
+            Path: /clientbuildings/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
