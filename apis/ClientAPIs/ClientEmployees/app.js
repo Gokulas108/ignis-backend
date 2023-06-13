@@ -2,6 +2,7 @@ const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 const authorize = require("/opt/nodejs/utils/authorize.js");
 const authcode = require("/opt/nodejs/utils/accessCodes.js");
+const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
 
 exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
@@ -59,7 +60,7 @@ exports.lambdaHandler = async (event, context) => {
           authcode.DELETE_EMPLOYEE,
           clitoken,
           token,
-          async (id, client_id) => await deleteEmployee(body.id, client_id)
+          async (id, client_id) => await deleteEmployee(body.id, id, client_id)
         );
         break;
       case "PUT":
@@ -124,7 +125,7 @@ async function addEmployee(
     `INSERT into ${client_id}_employees (id, full_name, designation, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $6)`,
     [id, full_name, designation, createdBy, date_now, date_now]
   );
-
+  await addclienttransaction(createdBy, client_id, "ADD_EMPLOEE");
   return ["Employee Successfully Added", 200];
 }
 
@@ -142,14 +143,15 @@ async function updateEmployee(
     `UPDATE ${client_id}_employees SET full_name = $1, designation = $2, updatedAt = $3, updatedby = $4 WHERE id = $5`,
     [full_name, designation, date_now, updatedby, id]
   );
-
-  return ["Employee Successfully Updatedbuilb", 200];
+  await addclienttransaction(updatedby, client_id, "UPDATE_EMPLOYEE");
+  return ["Employee Successfully Updated", 200];
 }
 
-async function deleteEmployee(id, client_id) {
+async function deleteEmployee(id, deletedby, client_id) {
   let employee_id = parseInt(id);
   await db.none(`DELETE FROM ${client_id}_employees WHERE id = $1`, [
     employee_id,
   ]);
+  await addclienttransaction(deletedby, client_id, "DELETE_EMPLOYEE");
   return ["Employee Successfully Deleted", 200];
 }

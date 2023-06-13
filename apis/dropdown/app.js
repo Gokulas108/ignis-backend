@@ -43,17 +43,48 @@ exports.lambdaHandler = async (event, context) => {
       //Sending dropdown data to frontend
       case "GET":
         if (path === "occupancyClassification") {
-          [data, statusCode] = await getOccupancyClassifications();
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) =>
+              await getOccupancyClassifications(client_id)
+          );
         } else if (path === "hazardClassification") {
-          [data, statusCode] = await getHazardClassifications();
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) => await getHazardClassifications(client_id)
+          );
         } else if (path === "dropdownAll") {
-          [data, statusCode] = await getAllDropdowns();
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) => await getAllDropdowns(client_id)
+          );
         } else if (path === "typeOfConstruction") {
-          [data, statusCode] = await getTypeOfConstruction();
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) => await getTypeOfConstruction(client_id)
+          );
         } else if (path === "contractType") {
-          [data, statusCode] = await getContractType();
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) => await getContractType(client_id)
+          );
         } else if (path === "getBuildingFields") {
-          [data, statusCode] = await getBuildingFields();
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) => await getBuildingFields(client_id)
+          );
         } else if (path === "countries") {
           [data, statusCode] = await getAllCountries();
         } else if (path === "systemtypes") {
@@ -97,21 +128,49 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         if (path === "occupancyClassification") {
           let body = JSON.parse(event.body);
-          [data, statusCode] = await addNewOccupancyClassification(
-            body.new_value
+          [data, statusCode] = await authorize(
+            authcode.ADD_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) =>
+              await addNewOccupancyClassification(body.new_value, id, client_id)
           );
         } else if (path === "hazardClassification") {
           let body = JSON.parse(event.body);
-          [data, statusCode] = await addNewHazardClassification(body.new_value);
+          [data, statusCode] = await authorize(
+            authcode.ADD_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) =>
+              await addNewHazardClassification(body.new_value, id, client_id)
+          );
         } else if (path === "typeOfConstruction") {
           let body = JSON.parse(event.body);
-          [data, statusCode] = await addNewTypeOfConstruction(body.new_value);
+          [data, statusCode] = await authorize(
+            authcode.ADD_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) =>
+              await addNewTypeOfConstruction(body.new_value, id, client_id)
+          );
         } else if (path === "contractType") {
           let body = JSON.parse(event.body);
-          [data, statusCode] = await addNewContractType(body.new_value);
+          [data, statusCode] = await authorize(
+            authcode.ADD_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) =>
+              await addNewContractType(body.new_value, id, client_id)
+          );
         } else if (path === "saveBuildingFields") {
           let body = JSON.parse(event.body);
-          [data, statusCode] = await saveRequiredfields(body.fields);
+          [data, statusCode] = await authorize(
+            authcode.ADD_BUILDING,
+            clitoken,
+            token,
+            async (id, client_id) =>
+              await saveRequiredfields(body.fields, id, client_id)
+          );
         } else [data, statusCode] = ["Error: Invalid request", 400];
         break;
 
@@ -128,13 +187,13 @@ exports.lambdaHandler = async (event, context) => {
 };
 
 //Getting all dropdown values
-async function getAllDropdowns() {
-  let [occupancyClassification] = await getOccupancyClassifications();
-  let [hazardClassification] = await getHazardClassifications();
-  let [typeOfConstruction] = await getTypeOfConstruction();
-  let [contractType] = await getContractType();
-  let [engineers] = await getEngineers();
-  let [add_building_required_fields] = await getBuildingFields();
+async function getAllDropdowns(client_id) {
+  let [occupancyClassification] = await getOccupancyClassifications(client_id);
+  let [hazardClassification] = await getHazardClassifications(client_id);
+  let [typeOfConstruction] = await getTypeOfConstruction(client_id);
+  let [contractType] = await getContractType(client_id);
+  let [engineers] = await getEngineers(client_id);
+  let [add_building_required_fields] = await getBuildingFields(client_id);
   let data = {
     occupancyClassification,
     hazardClassification,
@@ -147,7 +206,7 @@ async function getAllDropdowns() {
   return [data, statusCode];
 }
 
-//Getting data from Occupancy Classification table
+//Getting data from Engineers table
 async function getEngineers() {
   const users = await db.any(`SELECT id, name FROM users WHERE role = $1`, [
     "engineer",
@@ -158,27 +217,30 @@ async function getEngineers() {
 }
 
 //Getting data from Occupancy Classification table
-async function getOccupancyClassifications() {
-  const users = await db.any(`SELECT * FROM occupancy_classification`);
+async function getOccupancyClassifications(client_id) {
+  const users = await db.any(
+    `SELECT * FROM ${client_id}_occupancy_classification`
+  );
   let data = users;
   let statusCode = 200;
   return [data, statusCode];
 }
 
 //Adding new dropdown value to Occupancy classification
-async function addNewOccupancyClassification(new_value) {
+async function addNewOccupancyClassification(new_value, createdby, client_id) {
+  const date_now = new Date().toISOString();
   await db.none(
-    "INSERT INTO occupancy_classification (value, ahj) VALUES ($1, $2)",
-    [new_value, 1]
+    `INSERT INTO ${client_id}_occupancy_classification (value, ahj, createdby, updatedby, createdat, updatedat ) VALUES ($1, $2, $3, $3, $4, $4)`,
+    [new_value, 1, createdby, date_now]
   );
   let statusCode = 200;
   return ["Sucessfully Inserted", statusCode];
 }
 
 //Getting data from Hazard Classification table
-async function getHazardClassifications() {
+async function getHazardClassifications(client_id) {
   const data = await db.any(
-    `SELECT * FROM hazard_classification WHERE ahj = $1`,
+    `SELECT * FROM  ${client_id}_hazard_classification WHERE ahj = $1`,
     [1]
   );
   let statusCode = 200;
@@ -186,19 +248,20 @@ async function getHazardClassifications() {
 }
 
 //Adding new dropdown value to Hazard classification
-async function addNewHazardClassification(new_value) {
+async function addNewHazardClassification(new_value, createdby, client_id) {
+  const date_now = new Date().toISOString();
   await db.none(
-    "INSERT INTO hazard_classification (value, ahj) VALUES ($1, $2)",
-    [new_value, 1]
+    `INSERT INTO ${client_id}_hazard_classification (value, ahj, createdby, updatedby, createdat, updatedat ) VALUES ($1, $2, $3, $3, $4, $4)`,
+    [new_value, 1, createdby, date_now]
   );
   let statusCode = 200;
   return ["Sucessfully Inserted", statusCode];
 }
 
 //Getting data from Types Of Construction table
-async function getTypeOfConstruction() {
+async function getTypeOfConstruction(client_id) {
   const data = await db.any(
-    `SELECT * FROM type_of_construction WHERE ahj = $1`,
+    `SELECT * FROM ${client_id}_type_of_construction WHERE ahj = $1`,
     [1]
   );
   let statusCode = 200;
@@ -206,28 +269,33 @@ async function getTypeOfConstruction() {
 }
 
 //Adding new dropdown value to Types Of Construction
-async function addNewTypeOfConstruction(new_value) {
+async function addNewTypeOfConstruction(new_value, createdby, client_id) {
+  const date_now = new Date().toISOString();
   await db.none(
-    "INSERT INTO type_of_construction (value, ahj) VALUES ($1, $2)",
-    [new_value, 1]
+    `INSERT INTO ${client_id}_type_of_construction (value, ahj, createdby, updatedby, createdat, updatedat ) VALUES ($1, $2, $3, $3, $4, $4)`,
+    [new_value, 1, createdby, date_now]
   );
   let statusCode = 200;
   return ["Sucessfully Inserted", statusCode];
 }
 
 //Getting data from Contract-type table
-async function getContractType() {
-  const data = await db.any(`SELECT * FROM contract_type WHERE ahj = $1`, [1]);
+async function getContractType(client_id) {
+  const data = await db.any(
+    `SELECT * FROM ${client_id}_contract_type WHERE ahj = $1`,
+    [1]
+  );
   let statusCode = 200;
   return [data, statusCode];
 }
 
 //Adding new dropdown value to Contract type
-async function addNewContractType(new_value) {
-  await db.none("INSERT INTO contract_type (value, ahj) VALUES ($1, $2)", [
-    new_value,
-    1,
-  ]);
+async function addNewContractType(new_value, createdby, client_id) {
+  const date_now = new Date().toISOString();
+  await db.none(
+    `INSERT INTO ${client_id}_contract_type (value, ahj, createdby, updatedby, createdat, updatedat) VALUES ($1, $2, $3, $3, $4, $4)`,
+    [new_value, 1, createdby, date_now]
+  );
   let statusCode = 200;
   return ["Sucessfully Inserted", statusCode];
 }

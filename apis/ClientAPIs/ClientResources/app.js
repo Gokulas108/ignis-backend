@@ -2,6 +2,7 @@ const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 const authorize = require("/opt/nodejs/utils/authorize.js");
 const authcode = require("/opt/nodejs/utils/accessCodes.js");
+const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
 
 exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
@@ -59,7 +60,7 @@ exports.lambdaHandler = async (event, context) => {
           authcode.DELETE_RESOURCE,
           clitoken,
           token,
-          async (id, client_id) => await deleteResource(body.id, client_id)
+          async (id, client_id) => await deleteResource(body.id, id, client_id)
         );
         break;
       case "PUT":
@@ -120,7 +121,7 @@ async function addResource({ name, type, description }, createdBy, client_id) {
     `INSERT into ${client_id}_resources (name, type, description, createdBy, updatedby createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $6)`,
     [name, type, description, createdBy, date_now, date_now]
   );
-
+  await addclienttransaction(createdBy, client_id, "ADD_RESOURCE");
   return ["Resource Successfully Added", 200];
 }
 
@@ -138,14 +139,15 @@ async function updateResource(
     `UPDATE ${client_id}_resources SET name = $1, description = $2, type = $3, updatedAt = $4, updatedby = $5 WHERE id = $6`,
     [name, type, description, date_now, updatedby, id]
   );
-
-  return ["Resource Successfully Updatedbuilb", 200];
+  await addclienttransaction(updatedby, client_id, "UPDATE_RESOURCE");
+  return ["Resource Successfully Updated", 200];
 }
 
-async function deleteResource(id, client_id) {
+async function deleteResource(id, deletedby, client_id) {
   let resource_id = parseInt(id);
   await db.none(`DELETE FROM ${client_id}_resources WHERE id = $1`, [
     resource_id,
   ]);
+  await addclienttransaction(deletedby, client_id, "DELETE_RESOURCE");
   return ["Resource Successfully Deleted", 200];
 }

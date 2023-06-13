@@ -2,6 +2,7 @@ const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 const authorize = require("/opt/nodejs/utils/authorize.js");
 const authcode = require("/opt/nodejs/utils/accessCodes.js");
+const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
 
 exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
@@ -53,13 +54,25 @@ exports.lambdaHandler = async (event, context) => {
           async (id, client_id) => await addClientRole(body, id, client_id)
         );
         break;
+
+      case "PUT":
+        body = JSON.parse(event.body);
+        [data, statusCode] = await authorize(
+          authcode.UPDATE_USER_ROLE,
+          clitoken,
+          token,
+          async (id, client_id) => await updateClientRole(body, id, client_id)
+        );
+        break;
+
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.DELETE_USER_ROLE,
           clitoken,
           token,
-          async (id, client_id) => await deleteClientRole(body.id, client_id)
+          async (id, client_id) =>
+            await deleteClientRole(body.id, id, client_id)
         );
         break;
       default:
@@ -115,12 +128,31 @@ async function addClientRole({ role, authorizations }, createdBy, client_id) {
     `INSERT into ${client_id}_user_roles (role, authorizations, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $5)`,
     [role, authorizations, createdBy, updatedby, date_now, date_now]
   );
-
+  await addclienttransaction(createdBy, client_id, "ADD_USER_ROLE");
   return ["Role Successfully Added", 200];
 }
 
-async function deleteClientRole(id, client_id) {
+async function updateClientRole(
+  { role, authorizations },
+  updatedby,
+  client_id
+) {
+  if (!id || !authorizations || !role)
+    throw new Error("Missing required fields");
+
+  const date_now = new Date().toISOString();
+
+  await db.none(
+    `UPDATE ${client_id}_user_roles SET role = $1, authorizations = $2, updatedAt = $3, updatedby = $4 WHERE id = $5`,
+    [role, authorizations, date_now, updatedby, id]
+  );
+  await addclienttransaction(updatedby, client_id, "UPDATE_USER_ROLES");
+  return ["Role Successfully Updated", 200];
+}
+
+async function deleteClientRole(id, deletedby, client_id) {
   let role_id = parseInt(id);
   await db.none(`DELETE FROM ${client_id}_user_roles WHERE id = $1`, [role_id]);
+  await addclienttransaction(deletedby, client_id, "DELETE_USER_ROLE");
   return ["Role Successfully Deleted", 200];
 }

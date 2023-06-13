@@ -300,6 +300,25 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #ClientBuildings API to Add/View/Modify/Delete ClientBuildings
+  ClientBuildingsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientBuildings/
+      Events:
+        ClientBuildingsApi:
+          Type: Api
+          Properties:
+            Path: /Clientbuildings
+            Method: ANY
+        ClientResourceApi:
+          Type: Api
+          Properties:
+            Path: /Clientbuildings/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #SystemMaster API to Add/View/Modify/Delete SystemMaster
   SystemMasterAPIFunction:
     Type: AWS::Serverless::Function
