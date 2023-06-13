@@ -207,7 +207,7 @@ async function getAllDropdowns(client_id) {
 //Getting data from Engineers table
 async function getEngineers(client_id) {
   const users = await db.any(
-    `SELECT id, name FROM ${client_id}_users WHERE role = $1`,
+    `SELECT cu.id, cu.name FROM ${client_id}_users cu JOIN ${client_id}_user_roles cr ON cu.role = cr.id  WHERE cr.role = $1`,
     ["engineer"]
   );
   let data = users;
