@@ -23,6 +23,9 @@ Mappings:
       dbPort: "{{resolve:ssm:SUPBASE_DEV_PORT}}"
       secretkey: "{{resolve:ssm:DEV_SECRET_KEY}}"
       supersecretkey: "{{resolve:ssm:DEV_SUPER_SECRET_KEY}}"
+      bucket: "{{resolve:ssm:DEV_AWS_BUCKET}"
+      region: "{{resolve:ssm:DEV_AWS_REGION}"
+
 
     prod:
       dbHost: xxxxxxxxx # Database yet to be created
@@ -47,6 +50,8 @@ Globals:
         DB_PORT: !FindInMap [EnvMapping, !Ref Env, dbPort]
         SECRET_KEY: !FindInMap [EnvMapping, !Ref Env, secretkey]
         SUPER_SECRET_KEY: !FindInMap [EnvMapping, !Ref Env, supersecretkey]
+        BUCKET: !FindInMap [EnvMapping, !Ref Env, bucket]
+        REGION: !FindInMap [EnvMapping, !Ref Env, region]
         ResetVariable: 0 # Used for cold start!
 
 Resources:
@@ -191,6 +196,20 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #FileUpload API to generate link to upload file
+  FileUploadAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/FileUpload/
+      Events:
+        FileUploadApi:
+          Type: Api
+          Properties:
+            Path: /fileupload
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #Coordinates API to get Coordinate from QND95 to Lat&Long
   CoordinatesAPIFunction:
     Type: AWS::Serverless::Function
@@ -315,6 +334,25 @@ Resources:
           Type: Api
           Properties:
             Path: /clientbuildings/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientContracts API to Add/View/Modify/Delete ClientContracts
+  ClientContractsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientContracts/
+      Events:
+        ClientContractsApi:
+          Type: Api
+          Properties:
+            Path: /clientcontracts
+            Method: ANY
+        ClientContractApi:
+          Type: Api
+          Properties:
+            Path: /clientcontracts/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer

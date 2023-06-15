@@ -9,7 +9,8 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
-  let clitoken = event.headers["clienttoken"];
+  let ip = event["requestContext"]["identity"]["sourceIp"];
+  let useragent = event["requestContext"]["identity"]["userAgent"];
 
   try {
     switch (httpMethod) {
@@ -21,7 +22,8 @@ exports.lambdaHandler = async (event, context) => {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
             authcode.GET_RESOURCE,
-            clitoken,
+            ip,
+            useragent,
             token,
             async (id, client_id) =>
               await getResource(event.pathParameters.id, client_id)
@@ -33,7 +35,8 @@ exports.lambdaHandler = async (event, context) => {
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
               authcode.GET_RESOURCE,
-              clitoken,
+              ip,
+              useragent,
               token,
               async (id, client_id) =>
                 await getResources(page, limit, params.searchText, client_id)
@@ -49,7 +52,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.ADD_RESOURCE,
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id, client_id) => await addResource(body, id, client_id)
         );
@@ -58,7 +62,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.DELETE_RESOURCE,
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id, client_id) => await deleteResource(body.id, id, client_id)
         );
@@ -67,7 +72,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.UPDATE_RESOURCE,
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id, client_id) => await updateResource(body, id, client_id)
         );

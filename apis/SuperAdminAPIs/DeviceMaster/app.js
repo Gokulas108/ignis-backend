@@ -7,7 +7,8 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
-  let clitoken = event.headers["clienttoken"];
+  let ip = event["requestContext"]["identity"]["sourceIp"];
+  let useragent = event["requestContext"]["identity"]["userAgent"];
   try {
     switch (httpMethod) {
       case "OPTIONS":
@@ -18,7 +19,8 @@ exports.lambdaHandler = async (event, context) => {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
             [],
-            clitoken,
+            ip,
+            useragent,
             token,
             async (id) => await getDevice(event.pathParameters.id),
             true
@@ -31,7 +33,8 @@ exports.lambdaHandler = async (event, context) => {
             // if (event.headers["ignistoken"])
             [data, statusCode] = await authorize(
               [],
-              clitoken,
+              ip,
+              useragent,
               token,
               async (id) =>
                 getDevices(
@@ -54,7 +57,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => addDevice(body, id),
           true
@@ -64,6 +68,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          ip,
+          useragent,
           token,
           async (id) => updateDevice(body, id),
           true
@@ -73,6 +79,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
+          ip,
+          useragent,
           token,
           async (id) => deleteDevice(body.id),
           true

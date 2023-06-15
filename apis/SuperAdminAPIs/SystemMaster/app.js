@@ -7,7 +7,8 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
-  let clitoken = event.headers["clienttoken"];
+  let ip = event["requestContext"]["identity"]["sourceIp"];
+  let useragent = event["requestContext"]["identity"]["userAgent"];
 
   try {
     switch (httpMethod) {
@@ -19,7 +20,8 @@ exports.lambdaHandler = async (event, context) => {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
             [],
-            clitoken,
+            ip,
+            useragent,
             token,
             async (id) => await getSystem(event.pathParameters.id),
             true
@@ -31,7 +33,8 @@ exports.lambdaHandler = async (event, context) => {
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
               [],
-              clitoken,
+              ip,
+              useragent,
               token,
               async (id) => await getSystems(page, limit, params.searchText),
               true
@@ -48,7 +51,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => await addSystem(body.client, id),
           true
@@ -59,7 +63,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => await updateSystemFields(body, id),
           true
@@ -70,7 +75,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => await deleteSystem(body.id),
           true

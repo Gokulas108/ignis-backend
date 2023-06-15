@@ -7,7 +7,8 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
-  let clitoken = event.headers["clienttoken"];
+  let ip = event["requestContext"]["identity"]["sourceIp"];
+  let useragent = event["requestContext"]["identity"]["userAgent"];
 
   try {
     switch (httpMethod) {
@@ -19,7 +20,8 @@ exports.lambdaHandler = async (event, context) => {
         if (params.id) {
           [data, statusCode] = await authorize(
             [],
-            clitoken,
+            ip,
+            useragent,
             token,
             async (id) => await getClient(params.id),
             true
@@ -29,7 +31,8 @@ exports.lambdaHandler = async (event, context) => {
           limit = parseInt(params.limit);
           [data, statusCode] = await authorize(
             [],
-            clitoken,
+            ip,
+            useragent,
             token,
             async (id) => await getClients(page, limit, params.searchText),
             true
@@ -40,7 +43,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => await addClient(body.client, id),
           true
@@ -50,7 +54,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => await deleteClient(body.id),
           true
@@ -60,7 +65,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           [],
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id) => await updateClient(body, id),
           true

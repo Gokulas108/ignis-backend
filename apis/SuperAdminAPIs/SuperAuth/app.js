@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 exports.lambdaHandler = async (event, context) => {
+  let ip = event["requestContext"]["identity"]["sourceIp"];
+  let useragent = event["requestContext"]["identity"]["userAgent"];
   let statusCode = 200;
   let data;
   let httpMethod = event.httpMethod;
@@ -25,7 +27,8 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         let body = JSON.parse(event.body);
 
-        if (path === "login") [data, statusCode] = await login(body.userInfo);
+        if (path === "login")
+          [data, statusCode] = await login(body.userInfo, ip, useragent);
         else if (path === "verify") [data, statusCode] = await verify(body);
         else if (path === "reset")
           [data, statusCode] = await resetPasswordFirstTime(body);
@@ -46,7 +49,7 @@ exports.lambdaHandler = async (event, context) => {
 //Logging into user account
 //Inputs - username, password
 //Output - Logged in
-async function login(userInfo) {
+async function login(userInfo, ip, useragent) {
   let { username, password, client_id } = { ...userInfo };
 
   //Checking required fields
@@ -68,13 +71,14 @@ async function login(userInfo) {
       username: user.username,
       name: user.name,
       first_login: user.first_login,
+      ip: ip,
+      useragent: useragent,
     };
     const token = generateToken(new_user);
-    const clitoken = generateClientToken({ client_id: client_id });
+
     const responseBody = {
       user: new_user,
       token,
-      clitoken,
     };
     return [responseBody, 200];
   }
@@ -105,13 +109,6 @@ function verify({ user, token }) {
 function generateToken(user) {
   if (!user) return null;
   return jwt.sign(user, process.env.SUPER_SECRET_KEY, {
-    expiresIn: "8h",
-  });
-}
-
-function generateClientToken(client) {
-  if (!client) return null;
-  return jwt.sign(client, process.env.SECRET_KEY, {
     expiresIn: "8h",
   });
 }

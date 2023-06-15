@@ -23,12 +23,12 @@ exports.lambdaHandler = async (event, context) => {
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
-            authcode.GET_BUILDING,
+            authcode.GET_CONTRACT,
             ip,
             useragent,
             token,
             async (id, client_id) =>
-              await getBuilding(event.pathParameters.id, client_id)
+              await getContract(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
@@ -36,12 +36,12 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
-              authcode.GET_BUILDING,
+              authcode.GET_CONTRACT,
               ip,
               useragent,
               token,
               async (id, client_id) =>
-                await getBuildings(page, limit, params.searchText, client_id)
+                await getContracts(page, limit, params.searchText, client_id)
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -53,31 +53,31 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.ADD_BUILDING,
+          authcode.ADD_CONTRACT,
           ip,
           useragent,
           token,
-          async (id, client_id) => await addBuilding(body, id, client_id)
+          async (id, client_id) => await addContract(body, id, client_id)
         );
         break;
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.DELETE_BUILDING,
+          authcode.DELETE_CONTRACT,
           ip,
           useragent,
           token,
-          async (id, client_id) => await deleteBuilding(body.id, id, client_id)
+          async (id, client_id) => await deleteContract(body.id, id, client_id)
         );
         break;
       case "PUT":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.UPDATE_BUILDING,
+          authcode.UPDATE_CONTRACT,
           ip,
           useragent,
           token,
-          async (id, client_id) => await updateBuilding(body, id, client_id)
+          async (id, client_id) => await updateContract(body, id, client_id)
         );
         break;
       default:
@@ -92,36 +92,41 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getBuildings(page = 1, limit = 10, searchText = "", client_id) {
+async function getContracts(page = 1, limit = 10, searchText = "", client_id) {
   let offset = (page - 1) * limit;
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings ORDER BY building_name OFFSET $1 LIMIT $2`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_contracts ORDER BY id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings WHERE building_name iLIKE $1 OR building_area iLIKE $1 OR contact_number iLIKE $1 ORDER BY building_name OFFSET $2 LIMIT $3`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_contracts WHERE id iLIKE $1 OR title iLIKE $1 OR type iLIKE $1 OR fm_company iLIKE $1 ORDER BY contract_number OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getBuilding(id, client_id) {
-  let building_id = parseInt(id);
-  const data = await db.any(
-    `SELECT * FROM ${client_id}_buildings WHERE id = $1`,
-    [building_id]
+async function getContract(id, client_id) {
+  let contract_id = parseInt(id);
+  const cdata = await db.one(
+    `SELECT * FROM ${client_id}_contracts WHERE id = $1`,
+    [contract_id]
   );
-  return [data, 200];
+  const bdata = await db.any(
+    `SELECT * FROM ${client_id}_buildings WHERE id IN ($1)`,
+    [cdata.building_ids.join()]
+  );
+  return [{ cdata, bdata }, 200];
 }
 
-async function addBuilding(data, createdBy, client_id) {
+async function addContract(data, createdBy, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbinsert(data, client_id, "buildings");
+  let [sql_stmt, col_values] = obdbinsert(data, client_id, "contracts");
+
   await db.none(sql_stmt, [
     ...col_values,
     createdBy,
@@ -129,23 +134,23 @@ async function addBuilding(data, createdBy, client_id) {
     date_now,
     date_now,
   ]);
-  await addclienttransaction(createdBy, client_id, "ADD_BUILDING");
-  return ["Building Successfully Added", 200];
+  await addclienttransaction(createdBy, client_id, "ADD_CONTRACT");
+  return ["Contract Successfully Added", 200];
 }
 
-async function updateBuilding({ id, data }, updatedby, client_id) {
+async function updateContract({ id, data }, updatedby, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbupdate(id, data, client_id, "buildings");
+  let [sql_stmt, col_values] = obdbupdate(id, data, client_id, "contracts");
   await db.none(sql_stmt, [...col_values, updatedby, date_now]);
-  await addclienttransaction(updatedby, client_id, "UPDATE_BUILDING");
-  return ["Building Successfully Updated", 200];
+  await addclienttransaction(updatedby, client_id, "UPDATE_CONTRACT");
+  return ["Contract Successfully Updated", 200];
 }
 
-async function deleteBuilding(id, deletedby, client_id) {
-  let building_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_buildings WHERE id = $1`, [
-    building_id,
+async function deleteContract(id, deletedby, client_id) {
+  let contract_id = parseInt(id);
+  await db.none(`DELETE FROM ${client_id}_contracts WHERE id = $1`, [
+    contract_id,
   ]);
-  await addclienttransaction(deletedby, client_id, "DELETE_BUILDING");
-  return ["Building Successfully Deleted", 200];
+  await addclienttransaction(deletedby, client_id, "DELETE_CONTRACT");
+  return ["Contract Successfully Deleted", 200];
 }

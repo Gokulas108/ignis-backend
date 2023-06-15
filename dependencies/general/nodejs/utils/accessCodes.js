@@ -20,4 +20,8 @@ module.exports = {
   ADD_BUILDING: "bl02",
   DELETE_BUILDING: "bl03",
   UPDATE_BUILDING: "bl04",
+  GET_CONTRACT: "ct01",
+  ADD_CONTRACT: "ct02",
+  DELETE_CONTRACT: "ct03",
+  UPDATE_CONTRACT: "ct04",
 };

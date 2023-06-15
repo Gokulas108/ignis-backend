@@ -10,7 +10,8 @@ exports.lambdaHandler = async (event, context) => {
   let data, body;
   let httpMethod = event.httpMethod;
   let token = event.headers["ignistoken"];
-  let clitoken = event.headers["clienttoken"];
+  let ip = event["requestContext"]["identity"]["sourceIp"];
+  let useragent = event["requestContext"]["identity"]["userAgent"];
 
   try {
     switch (httpMethod) {
@@ -22,7 +23,8 @@ exports.lambdaHandler = async (event, context) => {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
             authcode.GET_USER,
-            clitoken,
+            ip,
+            useragent,
             token,
             async (id, client_id) =>
               await getClientUser(event.pathParameters.id, client_id)
@@ -34,7 +36,8 @@ exports.lambdaHandler = async (event, context) => {
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
               authcode.GET_USER,
-              clitoken,
+              ip,
+              useragent,
               token,
               async (id, client_id) =>
                 await getClientUsers(page, limit, params.searchText, client_id)
@@ -50,7 +53,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.ADD_USER,
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id, client_id) => await addClientUser(body, id, client_id)
         );
@@ -60,7 +64,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.UPDATE_USER,
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id, client_id) => await updateClientUser(body, id, client_id)
         );
@@ -70,7 +75,8 @@ exports.lambdaHandler = async (event, context) => {
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
           authcode.DELETE_USER,
-          clitoken,
+          ip,
+          useragent,
           token,
           async (id, client_id) =>
             await deleteClientUser(body.id, id, client_id)
