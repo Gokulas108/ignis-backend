@@ -48,8 +48,10 @@ const bucket = process.env.BUCKET;
 const region = process.env.REGION;
 
 async function createPresignedUrl({ building_name, file_name }, id, client_id) {
-  const path = `${client_id}/buildings/${building_name}/${file_name}`;
-  const url = parseUrl(`https://${bucket}.s3.${region}.amazonaws.com/${path}`);
+  const filepath = `${client_id}/buildings/${building_name}/${file_name}`;
+  const url = parseUrl(
+    `https://${bucket}.s3.${region}.amazonaws.com/${filepath}`
+  );
   const presigner = new S3RequestPresigner({
     credentials: fromIni(),
     region,
