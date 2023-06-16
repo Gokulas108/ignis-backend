@@ -15,5 +15,6 @@
 		"@aws-sdk/s3-request-presigner": "^3.352.0",
 		"@aws-sdk/url-parser": "^3.347.0",
 		"@aws-sdk/util-format-url": "^3.347.0"
-	}
+	},
+	"type": "module"
 }

@@ -1,17 +1,17 @@
-const fromIni = require("@aws-sdk/credential-providers");
-const HttpRequest = require("@aws-sdk/protocol-http");
-const S3RequestPresigner = require("@aws-sdk/s3-request-presigner");
-const parseUrl = require("@aws-sdk/url-parser");
-const formatUrl = require("@aws-sdk/util-format-url");
-const Hash = require("@aws-sdk/hash-node");
-const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
-const authorize = require("/opt/nodejs/utils/authorize.js");
-const authcode = require("/opt/nodejs/utils/accessCodes.js");
-const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
+import { fromIni } from "@aws-sdk/credential-providers";
+import { HttpRequest } from "@aws-sdk/protocol-http";
+import { S3RequestPresigner } from "@aws-sdk/s3-request-presigner";
+import { parseUrl } from "@aws-sdk/url-parser";
+import { formatUrl } from "@aws-sdk/util-format-url";
+import { Hash } from "@aws-sdk/hash-node";
+import addclienttransaction from "/opt/nodejs/utils/clientTransactions.js";
+import authorize from "/opt/nodejs/utils/authorize.js";
+import { ADD_BUILDING } from "/opt/nodejs/utils/accessCodes.js";
+import responseHandler from "/opt/nodejs/utils/responseHandler.js";
 const bucket = process.env.BUCKET;
 const region = process.env.REGION;
 
-exports.lambdaHandler = async (event, context) => {
+export async function lambdaHandler(event, context) {
 	let statusCode = 200;
 	let data = [];
 	let httpMethod = event.httpMethod;
@@ -27,7 +27,7 @@ exports.lambdaHandler = async (event, context) => {
 			case "POST":
 				let body = JSON.parse(event.body);
 				[data, statusCode] = await authorize(
-					authcode.ADD_BUILDING,
+					ADD_BUILDING,
 					ip,
 					useragent,
 					token,
@@ -44,7 +44,7 @@ exports.lambdaHandler = async (event, context) => {
 
 	response = responseHandler(data, statusCode);
 	return response;
-};
+}
 
 async function createPresignedUrl({ building_name, file_name }, id, client_id) {
 	const filepath = `${client_id}/buildings/${building_name}/${file_name}`;
