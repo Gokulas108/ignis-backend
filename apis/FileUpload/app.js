@@ -8,6 +8,8 @@ import addclienttransaction from "/opt/nodejs/utils/clientTransactions.js";
 import authorize from "/opt/nodejs/utils/authorize.js";
 import { ADD_BUILDING } from "/opt/nodejs/utils/accessCodes.js";
 import responseHandler from "/opt/nodejs/utils/responseHandler.js";
+import accessCodes from "/opt/nodejs/utils/accessCodes.js";
+const { ADD_BUILDING } = accessCodes;
 const bucket = process.env.BUCKET;
 const region = process.env.REGION;
 
