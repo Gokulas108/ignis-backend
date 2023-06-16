@@ -1,19 +1,17 @@
-import { fromIni } from "@aws-sdk/credential-providers";
-import { HttpRequest } from "@aws-sdk/protocol-http";
-import { S3RequestPresigner } from "@aws-sdk/s3-request-presigner";
-import { parseUrl } from "@aws-sdk/url-parser";
-import { formatUrl } from "@aws-sdk/util-format-url";
-import { Hash } from "@aws-sdk/hash-node";
-import addclienttransaction from "/opt/nodejs/utils/clientTransactions.js";
-import authorize from "/opt/nodejs/utils/authorize.js";
-import { ADD_BUILDING } from "/opt/nodejs/utils/accessCodes.js";
-import responseHandler from "/opt/nodejs/utils/responseHandler.js";
-import accessCodes from "/opt/nodejs/utils/accessCodes.js";
-const { ADD_BUILDING } = accessCodes;
+const AWS = require("aws-sdk");
+const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
+const authorize = require("/opt/nodejs/utils/authorize.js");
+const authcode = require("/opt/nodejs/utils/accessCodes.js");
+const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 const bucket = process.env.BUCKET;
 const region = process.env.REGION;
 
-export async function lambdaHandler(event, context) {
+AWS.config.update({ region });
+const s3 = new AWS.S3();
+const uploadBucket = bucket;
+const URL_EXPIRATION_SECONDS = 60 * 60;
+
+exports.lambdaHandler = async (event, context) => {
 	let statusCode = 200;
 	let data = [];
 	let httpMethod = event.httpMethod;
@@ -29,7 +27,7 @@ export async function lambdaHandler(event, context) {
 			case "POST":
 				let body = JSON.parse(event.body);
 				[data, statusCode] = await authorize(
-					ADD_BUILDING,
+					authcode.ADD_BUILDING,
 					ip,
 					useragent,
 					token,
@@ -46,22 +44,18 @@ export async function lambdaHandler(event, context) {
 
 	response = responseHandler(data, statusCode);
 	return response;
-}
+};
 
 async function createPresignedUrl({ building_name, file_name }, id, client_id) {
 	const filepath = `${client_id}/buildings/${building_name}/${file_name}`;
-	const url = parseUrl(
-		`https://${bucket}.s3.${region}.amazonaws.com/${filepath}`
-	);
-	const presigner = new S3RequestPresigner({
-		credentials: fromIni(),
-		region,
-		sha256: Hash.bind(null, "sha256"),
-	});
+	const s3Params = {
+		Bucket: uploadBucket,
+		Key: filepath,
+		Expires: URL_EXPIRATION_SECONDS,
+		ContentType: "image/* application/*",
+	};
+	let uploadURL = s3.getSignedUrl("putObject", s3Params);
 
-	const signedUrlObject = await presigner.presign(
-		new HttpRequest({ ...url, method: "PUT" })
-	);
 	await addclienttransaction(id, client_id, "FILE_UPLOAD");
-	return [formatUrl(signedUrlObject), 200];
+	return [uploadURL, 200];
 }

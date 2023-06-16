@@ -26,7 +26,6 @@ Mappings:
       bucket: "{{resolve:ssm:DEV_AWS_BUCKET}"
       region: "{{resolve:ssm:DEV_AWS_REGION}"
 
-
     prod:
       dbHost: xxxxxxxxx # Database yet to be created
       dbName: xxxxxxxxx # Database yet to be created
@@ -207,6 +206,9 @@ Resources:
           Properties:
             Path: /fileupload
             Method: ANY
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: ignis-dev
       Layers:
         - !Ref GeneralDependenciesLayer
 
