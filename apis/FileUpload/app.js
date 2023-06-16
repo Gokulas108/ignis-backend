@@ -1,9 +1,9 @@
-import { fromIni } from "@aws-sdk/credential-providers";
-import { HttpRequest } from "@aws-sdk/protocol-http";
-import { S3RequestPresigner } from "@aws-sdk/s3-request-presigner";
-import { parseUrl } from "@aws-sdk/url-parser";
-import { formatUrl } from "@aws-sdk/util-format-url";
-import { Hash } from "@aws-sdk/hash-node";
+const fromIni = require("@aws-sdk/credential-providers");
+const HttpRequest = require("@aws-sdk/protocol-http");
+const S3RequestPresigner = require("@aws-sdk/s3-request-presigner");
+const parseUrl = require("@aws-sdk/url-parser");
+const formatUrl = require("@aws-sdk/util-format-url");
+const Hash = require("@aws-sdk/hash-node");
 const addclienttransaction = require("/opt/nodejs/utils/clientTransactions.js");
 const authorize = require("/opt/nodejs/utils/authorize.js");
 const authcode = require("/opt/nodejs/utils/accessCodes.js");
