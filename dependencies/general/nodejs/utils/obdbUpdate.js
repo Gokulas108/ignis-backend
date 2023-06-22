@@ -1,4 +1,4 @@
-function obdbupdate(id, data, client_id, table) {
+function obdbupdate(data, client_id, table) {
   let column_names = Object.keys(data);
   let values = Object.values(data);
   let col_values = values;
@@ -20,7 +20,7 @@ function obdbupdate(id, data, client_id, table) {
   values = update_statement.join();
   sql_stmt = `UPDATE ${table_name} SET ${values},updatedby = $${
     col_values.length + 1
-  },updatedat = $${col_values.length + 2} WHERE id=(${id})`;
+  },updatedat = $${col_values.length + 2} WHERE id= $${col_values.length + 3} `;
 
   return [sql_stmt, col_values];
 }

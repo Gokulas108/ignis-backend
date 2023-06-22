@@ -122,7 +122,7 @@ async function getBuilding(id, client_id) {
 async function addBuilding(data, createdBy, client_id) {
   const date_now = new Date().toISOString();
   let [sql_stmt, col_values] = obdbinsert(data, client_id, "buildings");
-  await db.none(sql_stmt, [
+  const building = await db.one(`${sql_stmt} RETURNING id`, [
     ...col_values,
     createdBy,
     createdBy,
@@ -130,13 +130,13 @@ async function addBuilding(data, createdBy, client_id) {
     date_now,
   ]);
   await addclienttransaction(createdBy, client_id, "ADD_BUILDING");
-  return ["Building Successfully Added", 200];
+  return [building, 200];
 }
 
 async function updateBuilding({ id, data }, updatedby, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbupdate(id, data, client_id, "buildings");
-  await db.none(sql_stmt, [...col_values, updatedby, date_now]);
+  let [sql_stmt, col_values] = obdbupdate(data, client_id, "buildings");
+  await db.none(sql_stmt, [...col_values, updatedby, date_now, id]);
   await addclienttransaction(updatedby, client_id, "UPDATE_BUILDING");
   return ["Building Successfully Updated", 200];
 }

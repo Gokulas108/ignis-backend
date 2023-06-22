@@ -24,4 +24,11 @@ module.exports = {
   ADD_CONTRACT: "ct02",
   DELETE_CONTRACT: "ct03",
   UPDATE_CONTRACT: "ct04",
+  GET_SYSTEM: "cs01",
+  ADD_SYSTEM: "cs02",
+  DELETE_SYSTEM: "cs03",
+  UPDATE_SYSTEM: "cs04",
+  VIEW_FILE: "ff01",
+  UPLOAD_FILE: "ff02",
+  DELETE_FILE: "ff03",
 };

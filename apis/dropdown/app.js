@@ -34,6 +34,7 @@ exports.lambdaHandler = async (event, context) => {
           path === "clientRoles" ||
           path === "employees" ||
           path === "buildings" ||
+          path === "contracts" ||
           path === "authCodes"
         ) {
           [data, statusCode] = ["Success", 200];
@@ -52,8 +53,7 @@ exports.lambdaHandler = async (event, context) => {
             token,
             async (id, client_id) => await getBuildings(client_id)
           );
-        }
-        if (path === "occupancyClassification") {
+        } else if (path === "occupancyClassification") {
           [data, statusCode] = await authorize(
             authcode.GET_BUILDING,
             ip,
@@ -61,6 +61,14 @@ exports.lambdaHandler = async (event, context) => {
             token,
             async (id, client_id) =>
               await getOccupancyClassifications(client_id)
+          );
+        } else if (path === "contracts") {
+          [data, statusCode] = await authorize(
+            authcode.GET_CONTRACT,
+            ip,
+            useragent,
+            token,
+            async (id, client_id) => await getContracts(client_id)
           );
         } else if (path === "hazardClassification") {
           [data, statusCode] = await authorize(
@@ -217,6 +225,7 @@ async function getAllDropdowns(client_id) {
   let [hazardClassification] = await getHazardClassifications(client_id);
   let [typeOfConstruction] = await getTypeOfConstruction(client_id);
   let [engineers] = await getEngineers(client_id);
+  let [contractType] = await getContractType(client_id);
   let [add_building_required_fields] = await getBuildingFields(client_id);
   let data = {
     occupancyClassification,
@@ -224,12 +233,13 @@ async function getAllDropdowns(client_id) {
     typeOfConstruction,
     add_building_required_fields,
     engineers,
+    contractType,
   };
   let statusCode = 200;
   return [data, statusCode];
 }
 
-//Getting data from Engineers table
+//Getting Engineers from Users table
 async function getEngineers(client_id) {
   const data = await db.any(
     `SELECT cu.id, cu.name FROM ${client_id}_users cu JOIN ${client_id}_user_roles cr ON cu.role = cr.id  WHERE cr.role = $1`,
@@ -240,9 +250,19 @@ async function getEngineers(client_id) {
   return [data, statusCode];
 }
 
-//Getting data from Building table
+//Getting data from Buildings table
 async function getBuildings(client_id) {
-  const data = await db.any(`SELECT id, name FROM ${client_id}_buildings`);
+  const data = await db.any(
+    `SELECT id, building_name FROM ${client_id}_buildings`
+  );
+
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from Contracts table
+async function getContracts(client_id) {
+  const data = await db.any(`SELECT id, title FROM ${client_id}_contracts`);
 
   let statusCode = 200;
   return [data, statusCode];

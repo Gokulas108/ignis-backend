@@ -23,8 +23,8 @@ Mappings:
       dbPort: "{{resolve:ssm:SUPBASE_DEV_PORT}}"
       secretkey: "{{resolve:ssm:DEV_SECRET_KEY}}"
       supersecretkey: "{{resolve:ssm:DEV_SUPER_SECRET_KEY}}"
-      bucket: "{{resolve:ssm:DEV_AWS_BUCKET}"
-      region: "{{resolve:ssm:DEV_AWS_REGION}"
+      bucket: "{{resolve:ssm:DEV_AWS_BUCKET}}"
+      region: "{{resolve:ssm:DEV_AWS_REGION}}"
 
     prod:
       dbHost: xxxxxxxxx # Database yet to be created
@@ -98,6 +98,19 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #ContractValidityCheck API to check contract status
+  ContractValidityCheckAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/ContractValidityCheck/
+      Events:
+        InvocationLevel:
+          Type: Schedule
+          Properties:
+            Schedule: cron(55 9,18 * * ? *)
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #Assets API to manage Assets
   AssetsAPIFunction:
     Type: AWS::Serverless::Function
@@ -136,33 +149,6 @@ Resources:
           Type: Api
           Properties:
             Path: /clients
-            Method: ANY
-      Layers:
-        - !Ref GeneralDependenciesLayer
-
-  #Buildings API to Add/View/Modify/Delete buildings
-  BuildingsAPIFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: apis/buildings/
-      Events:
-        BuildingsApi:
-          Type: Api
-          Properties:
-            Path: /buildings
-            Method: ANY
-      Layers:
-        - !Ref GeneralDependenciesLayer
-
-  ContractsAPIFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: apis/contracts/
-      Events:
-        ContractsApi:
-          Type: Api
-          Properties:
-            Path: /contracts
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -207,7 +193,7 @@ Resources:
             Path: /fileupload
             Method: ANY
       Policies:
-        - S3FullAccessPolicy:
+        - S3CrudPolicy:
             BucketName: ignis-dev
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -355,6 +341,25 @@ Resources:
           Type: Api
           Properties:
             Path: /clientcontracts/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientSystems API to Add/View/Modify/Delete ClientSystems
+  ClientSystemsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientSystems/
+      Events:
+        ClientSystemsApi:
+          Type: Api
+          Properties:
+            Path: /clientsystems
+            Method: ANY
+        ClientSystemApi:
+          Type: Api
+          Properties:
+            Path: /clientsystems/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer

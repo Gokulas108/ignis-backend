@@ -23,12 +23,12 @@ exports.lambdaHandler = async (event, context) => {
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
-            authcode.GET_CONTRACT,
+            authcode.GET_SYSTEM,
             ip,
             useragent,
             token,
             async (id, client_id) =>
-              await getContract(event.pathParameters.id, client_id)
+              await getSystem(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
@@ -36,12 +36,12 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
-              authcode.GET_CONTRACT,
+              authcode.GET_SYSTEM,
               ip,
               useragent,
               token,
               async (id, client_id) =>
-                await getContracts(page, limit, params.searchText, client_id)
+                await getSystems(page, limit, params.searchText, client_id)
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -53,31 +53,31 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.ADD_CONTRACT,
+          authcode.ADD_SYSTEM,
           ip,
           useragent,
           token,
-          async (id, client_id) => await addContract(body, id, client_id)
+          async (id, client_id) => await addSystem(body, id, client_id)
         );
         break;
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.DELETE_CONTRACT,
+          authcode.DELETE_SYSTEM,
           ip,
           useragent,
           token,
-          async (id, client_id) => await deleteContract(body.id, id, client_id)
+          async (id, client_id) => await deleteSystem(body.id, id, client_id)
         );
         break;
       case "PUT":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.UPDATE_CONTRACT,
+          authcode.UPDATE_SYSTEM,
           ip,
           useragent,
           token,
-          async (id, client_id) => await updateContract(body, id, client_id)
+          async (id, client_id) => await updateSystem(body, id, client_id)
         );
         break;
       default:
@@ -92,64 +92,77 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getContracts(page = 1, limit = 10, searchText = "", client_id) {
+async function getSystems(page = 1, limit = 10, searchText = "", client_id) {
   let offset = (page - 1) * limit;
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_contracts ORDER BY id OFFSET $1 LIMIT $2`,
+      `SELECT cs.*, sys.name as systemtype, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id ORDER BY cs.id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_contracts WHERE id iLIKE $1 OR title iLIKE $1 OR type iLIKE $1 OR fm_company iLIKE $1 ORDER BY id OFFSET $2 LIMIT $3`,
+      `SELECT cs.*, sys.name as systemtype, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id WHERE cs.name iLIKE $1 OR cs.systemtype iLIKE $1 OR cs.tag iLIKE $1 OR cs.contract_id iLIKE $1 ORDER BY cs.id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getContract(id, client_id) {
+async function getSystem(id, client_id) {
+  let system_id = parseInt(id);
   const cdata = await db.one(
-    `SELECT * FROM ${client_id}_contracts WHERE id = $1`,
-    [id]
+    `SELECT * FROM ${client_id}_systems WHERE id = $1`,
+    [system_id]
   );
-  const sdata = await db.any(
-    `SELECT cs.system_id, sys.name as system_name, bld.building_name as building_name FROM ${client_id}_system_contract cs JOIN ${client_id}_systems sys ON cs.system_id = sys.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id WHERE cs.contract_id = $1`,
-    [id]
+  const bdata = await db.any(
+    `SELECT * FROM ${client_id}_buildings WHERE id IN ($1)`,
+    [cdata.building_ids.join()]
   );
-  return [{ cdata, sdata }, 200];
+  return [{ cdata, bdata }, 200];
 }
 
-async function addContract(data, createdBy, client_id) {
+async function addSystem({ data, contract_id }, createdBy, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbinsert(data, client_id, "contracts");
+  let [sql_stmt, col_values] = obdbinsert(data, client_id, "systems");
 
-  await db.none(sql_stmt, [
+  const system_id = await db.one(`${sql_stmt} RETURNING id`, [
     ...col_values,
     createdBy,
     createdBy,
     date_now,
     date_now,
   ]);
-  await addclienttransaction(createdBy, client_id, "ADD_CONTRACT");
-  return ["Contract Successfully Added", 200];
+  if (contract_id) {
+    await db.none(
+      `INSERT INTO ${client_id}_system_contract (system_id, contract_id, createdby, createdat) VALUES ($1, $2, $3, $4)`,
+      [system_id, contract_id, createdBy, date_now]
+    );
+    await db.none(
+      `UPDATE ${client_id}_systems SET current_contract = $1, contract_status = ( SELECT status FROM ${client_id}_contracts WHERE id = $1 ) WHERE id = $2`,
+      [contract_id, system_id]
+    );
+    await addclienttransaction(
+      createdBy,
+      client_id,
+      "ADD_SYSTEM_WITH_CONTRACT"
+    );
+  } else await addclienttransaction(createdBy, client_id, "ADD_SYSTEM");
+  return ["System Successfully Added", 200];
 }
 
-async function updateContract({ id, data }, updatedby, client_id) {
+async function updateSystem({ id, data }, updatedby, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbupdate(data, client_id, "contracts");
-  await db.none(sql_stmt, [...col_values, updatedby, date_now, id]);
-  await addclienttransaction(updatedby, client_id, "UPDATE_CONTRACT");
-  return ["Contract Successfully Updated", 200];
+  let [sql_stmt, col_values] = obdbupdate(id, data, client_id, "systems");
+  await db.none(sql_stmt, [...col_values, updatedby, date_now]);
+  await addclienttransaction(updatedby, client_id, "UPDATE_SYSTEM");
+  return ["System Successfully Updated", 200];
 }
 
-async function deleteContract(id, deletedby, client_id) {
-  let contract_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_contracts WHERE id = $1`, [
-    contract_id,
-  ]);
-  await addclienttransaction(deletedby, client_id, "DELETE_CONTRACT");
-  return ["Contract Successfully Deleted", 200];
+async function deleteSystem(id, deletedby, client_id) {
+  let system_id = parseInt(id);
+  await db.none(`DELETE FROM ${client_id}_systems WHERE id = $1`, [system_id]);
+  await addclienttransaction(deletedby, client_id, "DELETE_SYSTEM");
+  return ["System Successfully Deleted", 200];
 }
