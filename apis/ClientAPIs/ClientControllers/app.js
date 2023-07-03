@@ -21,12 +21,12 @@ exports.lambdaHandler = async (event, context) => {
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
-            authcode.GET_USER_ROLE,
+            authcode.GET_BUILDING_CONTROLLER,
             ip,
             useragent,
             token,
             async (username, client_id) =>
-              await getClientRole(event.pathParameters.id, client_id)
+              await getBuildingController(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
@@ -34,12 +34,17 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
-              authcode.GET_USER_ROLE,
+              authcode.GET_BUILDING_CONTROLLER,
               ip,
               useragent,
               token,
-              async (username) =>
-                await getClientRoles(page, limit, params.searchText, client_id)
+              async (username, client_id) =>
+                await getBuildingControllers(
+                  page,
+                  limit,
+                  params.searchText,
+                  client_id
+                )
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -51,36 +56,34 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.ADD_USER_ROLE,
+          authcode.ADD_BUILDING_CONTROLLER,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await addClientRole(body, username, client_id)
+            await addBuildingController(body, username, client_id)
         );
         break;
-
-      case "PUT":
-        body = JSON.parse(event.body);
-        [data, statusCode] = await authorize(
-          authcode.UPDATE_USER_ROLE,
-          ip,
-          useragent,
-          token,
-          async (username, client_id) =>
-            await updateClientRole(body, username, client_id)
-        );
-        break;
-
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.DELETE_USER_ROLE,
+          authcode.DELETE_BUILDING_CONTROLLER,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await deleteClientRole(body.id, username, client_id)
+            await deleteBuildingController(body.id, username, client_id)
+        );
+        break;
+      case "PUT":
+        body = JSON.parse(event.body);
+        [data, statusCode] = await authorize(
+          authcode.UPDATE_BUILDING_CONTROLLER,
+          ip,
+          useragent,
+          token,
+          async (username, client_id) =>
+            await updateBuildingController(body, username, client_id)
         );
         break;
       default:
@@ -95,7 +98,7 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getClientRoles(
+async function getBuildingControllers(
   page = 1,
   limit = 10,
   searchText = "",
@@ -105,62 +108,75 @@ async function getClientRoles(
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_user_roles ORDER BY role OFFSET $1 LIMIT $2`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_building_controllers ORDER BY id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_user_roles WHERE role iLIKE $1  ORDER BY role OFFSET $2 LIMIT $3`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_building_controllers WHERE id iLIKE $1 ORDER BY id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getClientRole(id, client_id) {
-  let role_id = parseInt(id);
+async function getBuildingController(id, client_id) {
+  let building_controller_id = parseInt(id);
   const data = await db.any(
-    `SELECT * FROM ${client_id}_user_roles WHERE id = $1`,
-    [role_id]
+    `SELECT * FROM ${client_id}_building_controllers WHERE id = $1`,
+    [building_controller_id]
   );
   return [data, 200];
 }
 
-async function addClientRole({ role, authorizations }, createdBy, client_id) {
-  if (!role || !createdBy) throw new Error("Missing required fields");
+async function addBuildingController(
+  { id, assigned_users },
+  createdBy,
+  client_id
+) {
+  if (!id) throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    `INSERT into ${client_id}_user_roles (role, authorizations, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $5)`,
-    [role, authorizations, createdBy, updatedby, date_now, date_now]
+    `INSERT into ${client_id}_building_controllers (id, assigned_users, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $4)`,
+    [id, assigned_users, createdBy, date_now]
   );
-  await addclienttransaction(createdBy, client_id, "ADD_USER_ROLE");
-  return ["Role Successfully Added", 200];
+  await addclienttransaction(createdBy, client_id, "ADD_BUILDING_CONTROLLER");
+  return ["BuildingController Successfully Added", 200];
 }
 
-async function updateClientRole(
-  { role, authorizations },
+async function updateBuildingController(
+  { id, assigned_users },
   updatedby,
   client_id
 ) {
-  if (!id || !authorizations || !role)
-    throw new Error("Missing required fields");
+  if (!id) throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    `UPDATE ${client_id}_user_roles SET role = $1, authorizations = $2, updatedAt = $3, updatedby = $4 WHERE id = $5`,
-    [role, authorizations, date_now, updatedby, id]
+    `UPDATE ${client_id}_building_controllers SET assigned_users = $1, updatedAt = $2, updatedby = $3 WHERE id = $4`,
+    [assigned_users, date_now, updatedby, id]
   );
-  await addclienttransaction(updatedby, client_id, "UPDATE_USER_ROLES");
-  return ["Role Successfully Updated", 200];
+  await addclienttransaction(
+    updatedby,
+    client_id,
+    "UPDATE_BUILDING_CONTROLLER"
+  );
+  return ["BuildingController Successfully Updated", 200];
 }
 
-async function deleteClientRole(id, deletedby, client_id) {
-  let role_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_user_roles WHERE id = $1`, [role_id]);
-  await addclienttransaction(deletedby, client_id, "DELETE_USER_ROLE");
-  return ["Role Successfully Deleted", 200];
+async function deleteBuildingController(id, deletedby, client_id) {
+  let building_controller_id = parseInt(id);
+  await db.none(`DELETE FROM ${client_id}_building_controllers WHERE id = $1`, [
+    building_controller_id,
+  ]);
+  await addclienttransaction(
+    deletedby,
+    client_id,
+    "DELETE_BUILDING_CONTROLLER"
+  );
+  return ["BuildingController Successfully Deleted", 200];
 }

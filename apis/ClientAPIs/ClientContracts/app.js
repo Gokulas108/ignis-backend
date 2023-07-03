@@ -27,7 +27,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
+            async (username, client_id) =>
               await getContract(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
@@ -40,7 +40,7 @@ exports.lambdaHandler = async (event, context) => {
               ip,
               useragent,
               token,
-              async (id, client_id) =>
+              async (username, client_id) =>
                 await getContracts(page, limit, params.searchText, client_id)
             );
           } else {
@@ -57,7 +57,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await addContract(body, id, client_id)
+          async (username, client_id) =>
+            await addContract(body, username, client_id)
         );
         break;
       case "DELETE":
@@ -67,7 +68,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await deleteContract(body.id, id, client_id)
+          async (username, client_id) =>
+            await deleteContract(body.id, username, client_id)
         );
         break;
       case "PUT":
@@ -77,7 +79,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await updateContract(body, id, client_id)
+          async (username, client_id) =>
+            await updateContract(body, username, client_id)
         );
         break;
       default:

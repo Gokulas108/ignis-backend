@@ -35,6 +35,10 @@ exports.lambdaHandler = async (event, context) => {
           path === "employees" ||
           path === "buildings" ||
           path === "contracts" ||
+          path === "systemfields" ||
+          path === "systems" ||
+          path === "users" ||
+          path === "building_controllers" ||
           path === "authCodes"
         ) {
           [data, statusCode] = ["Success", 200];
@@ -51,7 +55,16 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getBuildings(client_id)
+            async (username, client_id) => await getBuildings(client_id)
+          );
+        } else if (path === "building_controllers") {
+          [data, statusCode] = await authorize(
+            authcode.GET_BUILDING,
+            ip,
+            useragent,
+            token,
+            async (username, client_id) =>
+              await getBuildingControllers(client_id)
           );
         } else if (path === "occupancyClassification") {
           [data, statusCode] = await authorize(
@@ -59,8 +72,16 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
+            async (username, client_id) =>
               await getOccupancyClassifications(client_id)
+          );
+        } else if (path === "users") {
+          [data, statusCode] = await authorize(
+            authcode.GET_USER,
+            ip,
+            useragent,
+            token,
+            async (username, client_id) => await getUsers(client_id)
           );
         } else if (path === "contracts") {
           [data, statusCode] = await authorize(
@@ -68,7 +89,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getContracts(client_id)
+            async (username, client_id) => await getContracts(client_id)
           );
         } else if (path === "hazardClassification") {
           [data, statusCode] = await authorize(
@@ -76,7 +97,8 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getHazardClassifications(client_id)
+            async (username, client_id) =>
+              await getHazardClassifications(client_id)
           );
         } else if (path === "dropdownAll") {
           [data, statusCode] = await authorize(
@@ -84,7 +106,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getAllDropdowns(client_id)
+            async (username, client_id) => await getAllDropdowns(client_id)
           );
         } else if (path === "typeOfConstruction") {
           [data, statusCode] = await authorize(
@@ -92,7 +114,8 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getTypeOfConstruction(client_id)
+            async (username, client_id) =>
+              await getTypeOfConstruction(client_id)
           );
         } else if (path === "contractType") {
           [data, statusCode] = await authorize(
@@ -100,7 +123,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getContractType(client_id)
+            async (username, client_id) => await getContractType(client_id)
           );
         } else if (path === "getBuildingFields") {
           [data, statusCode] = await authorize(
@@ -108,27 +131,54 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getBuildingFields(client_id)
+            async (username, client_id) => await getBuildingFields(client_id)
           );
         } else if (path === "countries") {
           [data, statusCode] = await getAllCountries();
         } else if (path === "systemtypes") {
           [data, statusCode] = await getAllSystemtypes();
+        } else if (path === "systemfields") {
+          if (event.queryStringParameters && event.queryStringParameters.id) {
+            [data, statusCode] = await getSystemFields(
+              event.queryStringParameters.id
+            );
+          }
         } else if (path === "clientRoles") {
           [data, statusCode] = await authorize(
             authcode.GET_USER_ROLE,
             ip,
             useragent,
             token,
-            async (id, client_id) => await getAllRoles(client_id)
+            async (username, client_id) => await getAllRoles(client_id)
           );
+        } else if (path === "systems") {
+          if (
+            event.queryStringParameters &&
+            event.queryStringParameters.status &&
+            event.queryStringParameters.building_id
+          ) {
+            [data, statusCode] = await authorize(
+              authcode.GET_SYSTEM,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) =>
+                await getSystemsSB(
+                  event.queryStringParameters.status,
+                  event.queryStringParameters.building_id,
+                  client_id
+                )
+            );
+          } else {
+            [data, statusCode] = ["Error: Invalid request", 400];
+          }
         } else if (path === "authCodes") {
           [data, statusCode] = await authorize(
             authcode.GET_AUTH_CODES,
             ip,
             useragent,
             token,
-            async (id, client_id) => await getAllAuthCodes()
+            async (username, client_id) => await getAllAuthCodes()
           );
         } else if (path === "employees") {
           [data, statusCode] = await authorize(
@@ -136,7 +186,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) => await getAllEmployees(client_id)
+            async (username, client_id) => await getAllEmployees(client_id)
           );
         } else if (path === "devicetypes") {
           if (
@@ -161,8 +211,12 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
-              await addNewOccupancyClassification(body.new_value, id, client_id)
+            async (username, client_id) =>
+              await addNewOccupancyClassification(
+                body.new_value,
+                username,
+                client_id
+              )
           );
         } else if (path === "hazardClassification") {
           let body = JSON.parse(event.body);
@@ -171,8 +225,12 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
-              await addNewHazardClassification(body.new_value, id, client_id)
+            async (username, client_id) =>
+              await addNewHazardClassification(
+                body.new_value,
+                username,
+                client_id
+              )
           );
         } else if (path === "typeOfConstruction") {
           let body = JSON.parse(event.body);
@@ -181,8 +239,12 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
-              await addNewTypeOfConstruction(body.new_value, id, client_id)
+            async (username, client_id) =>
+              await addNewTypeOfConstruction(
+                body.new_value,
+                username,
+                client_id
+              )
           );
         } else if (path === "contractType") {
           let body = JSON.parse(event.body);
@@ -191,8 +253,8 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
-              await addNewContractType(body.new_value, id, client_id)
+            async (username, client_id) =>
+              await addNewContractType(body.new_value, username, client_id)
           );
         } else if (path === "saveBuildingFields") {
           let body = JSON.parse(event.body);
@@ -201,8 +263,8 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
-              await saveRequiredfields(body.fields, id, client_id)
+            async (username, client_id) =>
+              await saveRequiredfields(body.fields, username, client_id)
           );
         } else [data, statusCode] = ["Error: Invalid request", 400];
         break;
@@ -224,7 +286,7 @@ async function getAllDropdowns(client_id) {
   let [occupancyClassification] = await getOccupancyClassifications(client_id);
   let [hazardClassification] = await getHazardClassifications(client_id);
   let [typeOfConstruction] = await getTypeOfConstruction(client_id);
-  let [engineers] = await getEngineers(client_id);
+  let [building_controllers] = await getBuildingControllers(client_id);
   let [contractType] = await getContractType(client_id);
   let [add_building_required_fields] = await getBuildingFields(client_id);
   let data = {
@@ -232,19 +294,15 @@ async function getAllDropdowns(client_id) {
     hazardClassification,
     typeOfConstruction,
     add_building_required_fields,
-    engineers,
+    building_controllers,
     contractType,
   };
   let statusCode = 200;
   return [data, statusCode];
 }
-
-//Getting Engineers from Users table
-async function getEngineers(client_id) {
-  const data = await db.any(
-    `SELECT cu.id, cu.name FROM ${client_id}_users cu JOIN ${client_id}_user_roles cr ON cu.role = cr.id  WHERE cr.role = $1`,
-    ["engineer"]
-  );
+//Getting data from Building Controllers table
+async function getBuildingControllers(client_id) {
+  const data = await db.any(`SELECT id FROM ${client_id}_building_controllers`);
 
   let statusCode = 200;
   return [data, statusCode];
@@ -255,6 +313,24 @@ async function getBuildings(client_id) {
   const data = await db.any(
     `SELECT id, building_name FROM ${client_id}_buildings`
   );
+
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+async function getSystemsSB(status, building_id, client_id) {
+  const data = await db.any(
+    `SELECT cs.id, cs.name FROM ${client_id}_systems cs JOIN ${client_id}_contracts cc ON cs.current_contract = cc.id  WHERE cc.status = $1 AND cs.building_id = $2`,
+    [status, building_id]
+  );
+
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from Users table
+async function getUsers(client_id) {
+  const data = await db.any(`SELECT username, name FROM ${client_id}_users`);
 
   let statusCode = 200;
   return [data, statusCode];
@@ -379,6 +455,16 @@ async function getAllCountries() {
 
 async function getAllSystemtypes() {
   const data = await db.any("SELECT id, name FROM systemtypes");
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+async function getSystemFields(id) {
+  let system_id = parseInt(id);
+  const data = await db.one(
+    "SELECT general_information FROM systemtypes WHERE id = $1",
+    [system_id]
+  );
   let statusCode = 200;
   return [data, statusCode];
 }

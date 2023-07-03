@@ -107,7 +107,7 @@ Resources:
         InvocationLevel:
           Type: Schedule
           Properties:
-            Schedule: cron(55 9,18 * * ? *)
+            Schedule: cron(12 13,18 * * ? *)
       Layers:
         - !Ref GeneralDependenciesLayer
 
@@ -288,6 +288,25 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #ClientNotifications API to Add/View/Modify/Delete ClientNotifications
+  ClientNotificationsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientNotifications/
+      Events:
+        ClientNotificationsApi:
+          Type: Api
+          Properties:
+            Path: /clientnotifications
+            Method: ANY
+        ClientNotificationApi:
+          Type: Api
+          Properties:
+            Path: /clientnotifications/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #ClientResources API to Add/View/Modify/Delete ClientResources
   ClientResourcesAPIFunction:
     Type: AWS::Serverless::Function
@@ -303,6 +322,44 @@ Resources:
           Type: Api
           Properties:
             Path: /clientresources/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientControllers API to Add/View/Modify/Delete ClientControllers
+  ClientControllersAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientControllers/
+      Events:
+        ClientControllersApi:
+          Type: Api
+          Properties:
+            Path: /clientcontrollers
+            Method: ANY
+        ClientControllerApi:
+          Type: Api
+          Properties:
+            Path: /clientcontrollers/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientAssets API to Add/View/Modify/Delete ClientAssets
+  ClientAssetsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientAssets/
+      Events:
+        ClientAssetsApi:
+          Type: Api
+          Properties:
+            Path: /clientassets
+            Method: ANY
+        ClientAssetApi:
+          Type: Api
+          Properties:
+            Path: /clientassets/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer

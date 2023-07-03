@@ -26,7 +26,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
+            async (username, client_id) =>
               await getClientUser(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
@@ -39,7 +39,7 @@ exports.lambdaHandler = async (event, context) => {
               ip,
               useragent,
               token,
-              async (id, client_id) =>
+              async (username, client_id) =>
                 await getClientUsers(page, limit, params.searchText, client_id)
             );
           } else {
@@ -56,7 +56,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await addClientUser(body, id, client_id)
+          async (username, client_id) =>
+            await addClientUser(body, username, client_id)
         );
         break;
 
@@ -67,7 +68,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await updateClientUser(body, id, client_id)
+          async (username, client_id) =>
+            await updateClientUser(body, username, client_id)
         );
         break;
 
@@ -78,8 +80,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) =>
-            await deleteClientUser(body.id, id, client_id)
+          async (username, client_id) =>
+            await deleteClientUser(body.id, username, client_id)
         );
         break;
       default:
@@ -145,22 +147,27 @@ async function addClientUser(
   return ["User Successfully Added", 200];
 }
 
-async function updateClientUser({ id, name, role }, updatedby, client_id) {
-  if (!id || !name || !role) throw new Error("Missing required fields");
+async function updateClientUser(
+  { username, name, role },
+  updatedby,
+  client_id
+) {
+  if (!username || !name || !role) throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    `UPDATE ${client_id}_users SET name = $1, role = $2, updatedAt = $3, updatedby = $4 WHERE id = $5`,
-    [name, role, date_now, updatedby, id]
+    `UPDATE ${client_id}_users SET name = $1, role = $2, updatedAt = $3, updatedby = $4 WHERE username = $5`,
+    [name, role, date_now, updatedby, username]
   );
   await addclienttransaction(updatedby, client_id, "UPDATE_USER");
   return ["User Successfully Updated", 200];
 }
 
-async function deleteClientUser(id, deletedby, client_id) {
-  let user_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_users WHERE id = $1`, [user_id]);
+async function deleteClientUser(username, deletedby, client_id) {
+  await db.none(`DELETE FROM ${client_id}_users WHERE username = $1`, [
+    username,
+  ]);
   await addclienttransaction(deletedby, client_id, "DELETE_USER");
   return ["User Successfully Deleted", 200];
 }

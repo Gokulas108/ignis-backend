@@ -23,6 +23,5 @@ exports.lambdaHandler = async (event, context) => {
       `UPDATE ${client_id}_contracts SET status = $1 WHERE from_date > $2 AND status != $1`,
       ["INACTIVE", date_now]
     );
-    await addclienttransaction(8, client_id, "CONTRACT_VALIDITY_CHECK");
   });
 };

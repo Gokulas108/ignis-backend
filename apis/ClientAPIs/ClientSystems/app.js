@@ -27,7 +27,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
+            async (username, client_id) =>
               await getSystem(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
@@ -40,7 +40,7 @@ exports.lambdaHandler = async (event, context) => {
               ip,
               useragent,
               token,
-              async (id, client_id) =>
+              async (username, client_id) =>
                 await getSystems(page, limit, params.searchText, client_id)
             );
           } else {
@@ -57,7 +57,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await addSystem(body, id, client_id)
+          async (username, client_id) =>
+            await addSystem(body, username, client_id)
         );
         break;
       case "DELETE":
@@ -67,7 +68,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await deleteSystem(body.id, id, client_id)
+          async (username, client_id) =>
+            await deleteSystem(body.id, username, client_id)
         );
         break;
       case "PUT":
@@ -77,7 +79,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await updateSystem(body, id, client_id)
+          async (username, client_id) =>
+            await updateSystem(body, username, client_id)
         );
         break;
       default:
@@ -97,13 +100,13 @@ async function getSystems(page = 1, limit = 10, searchText = "", client_id) {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT cs.*, sys.name as systemtype, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id ORDER BY cs.id OFFSET $1 LIMIT $2`,
+      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems  cs JOIN systemtypes sys ON cs.type = sys.id JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id ORDER BY cs.id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT cs.*, sys.name as systemtype, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id WHERE cs.name iLIKE $1 OR cs.systemtype iLIKE $1 OR cs.tag iLIKE $1 OR cs.contract_id iLIKE $1 ORDER BY cs.id OFFSET $2 LIMIT $3`,
+      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id WHERE cs.name iLIKE $1 OR cs.systemtype iLIKE $1 OR cs.tag iLIKE $1 OR cs.contract_id iLIKE $1 ORDER BY cs.id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -113,7 +116,7 @@ async function getSystems(page = 1, limit = 10, searchText = "", client_id) {
 async function getSystem(id, client_id) {
   let system_id = parseInt(id);
   const cdata = await db.one(
-    `SELECT * FROM ${client_id}_systems WHERE id = $1`,
+    `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields  FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id  WHERE id = $1`,
     [system_id]
   );
   const bdata = await db.any(
@@ -127,7 +130,7 @@ async function addSystem({ data, contract_id }, createdBy, client_id) {
   const date_now = new Date().toISOString();
   let [sql_stmt, col_values] = obdbinsert(data, client_id, "systems");
 
-  const system_id = await db.one(`${sql_stmt} RETURNING id`, [
+  const system = await db.one(`${sql_stmt} RETURNING id`, [
     ...col_values,
     createdBy,
     createdBy,
@@ -137,32 +140,74 @@ async function addSystem({ data, contract_id }, createdBy, client_id) {
   if (contract_id) {
     await db.none(
       `INSERT INTO ${client_id}_system_contract (system_id, contract_id, createdby, createdat) VALUES ($1, $2, $3, $4)`,
-      [system_id, contract_id, createdBy, date_now]
+      [system.id, contract_id, createdBy, date_now]
     );
     await db.none(
-      `UPDATE ${client_id}_systems SET current_contract = $1, contract_status = ( SELECT status FROM ${client_id}_contracts WHERE id = $1 ) WHERE id = $2`,
-      [contract_id, system_id]
+      `UPDATE ${client_id}_systems SET current_contract = $1 WHERE id = $2`,
+      [contract_id, system.id]
     );
+    await db.none(
+      `INSERT INTO ${client_id}_notifications (type, description, system_id, contract_id, building_controller, createdby, createdat) VALUES ($1, $2, $3, $7, ( SELECT building_controller FROM ${client_id}_buildings WHERE id = $4 ), $5, $6)`,
+      [
+        "Asset Tagging",
+        system.id,
+        contract_id,
+        data.building_id,
+        createdBy,
+        date_now,
+        "Add assets for the system",
+      ]
+    );
+
     await addclienttransaction(
       createdBy,
       client_id,
       "ADD_SYSTEM_WITH_CONTRACT"
     );
   } else await addclienttransaction(createdBy, client_id, "ADD_SYSTEM");
+
   return ["System Successfully Added", 200];
 }
 
-async function updateSystem({ id, data }, updatedby, client_id) {
+async function updateSystem(
+  { id, general_information, contract_id },
+  updatedby,
+  client_id
+) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbupdate(id, data, client_id, "systems");
-  await db.none(sql_stmt, [...col_values, updatedby, date_now]);
-  await addclienttransaction(updatedby, client_id, "UPDATE_SYSTEM");
+  if (!contract_id) {
+    await db.none(
+      `UPDATE ${client_id}_systems SET general_information = $1, updatedat = $2, updatedby = $3 WHERE id = $4`,
+      [general_information, date_now, updatedby, id]
+    );
+    await addclienttransaction(updatedby, client_id, "UPDATE_SYSTEM");
+  } else {
+    await db.none(
+      `INSERT INTO ${client_id}_system_contract (system_id, contract_id, createdby, createdat) VALUES ($1, $2, $3, $4)`,
+      [id, contract_id, updatedby, date_now]
+    );
+    await db.none(
+      `UPDATE ${client_id}_systems SET current_contract = $1, updatedat = $2, updatedby = $3 WHERE id = $4`,
+      [contract_id, date_now, updatedby, id]
+    );
+    await addclienttransaction(
+      updatedby,
+      client_id,
+      "UPDATE_SYSTEM_WITH_CONTRACT"
+    );
+  }
+
   return ["System Successfully Updated", 200];
 }
 
 async function deleteSystem(id, deletedby, client_id) {
   let system_id = parseInt(id);
   await db.none(`DELETE FROM ${client_id}_systems WHERE id = $1`, [system_id]);
+  await db.none(
+    `DELETE FROM ${client_id}_system_contract WHERE system_id = $1`,
+    [system_id]
+  );
+
   await addclienttransaction(deletedby, client_id, "DELETE_SYSTEM");
   return ["System Successfully Deleted", 200];
 }

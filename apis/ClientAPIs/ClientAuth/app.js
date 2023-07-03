@@ -68,12 +68,13 @@ async function login(userInfo, ip, useragent) {
     [username]
   );
   if (!user || !user.username) return ["Error: No User found", 401];
+  else if (user.status === "INACTIVE")
+    return ["Error: Inactive User, Please contact System Administrator", 401];
   else {
     if (!bcrypt.compareSync(password, user.password)) {
       return ["Error: Incorrect password", 403];
     }
     let new_user = {
-      id: user.id,
       username: user.username,
       name: user.name,
       role: user.role,
@@ -89,7 +90,7 @@ async function login(userInfo, ip, useragent) {
       user: new_user,
       token,
     };
-    await addclienttransaction(user.id, client_id, "Login");
+    await addclienttransaction(user.username, client_id, "Login");
     return [responseBody, 200];
   }
 }

@@ -25,7 +25,7 @@ exports.lambdaHandler = async (event, context) => {
             ip,
             useragent,
             token,
-            async (id, client_id) =>
+            async (username, client_id) =>
               await getResource(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
@@ -38,7 +38,7 @@ exports.lambdaHandler = async (event, context) => {
               ip,
               useragent,
               token,
-              async (id, client_id) =>
+              async (username, client_id) =>
                 await getResources(page, limit, params.searchText, client_id)
             );
           } else {
@@ -55,7 +55,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await addResource(body, id, client_id)
+          async (username, client_id) =>
+            await addResource(body, username, client_id)
         );
         break;
       case "DELETE":
@@ -65,7 +66,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await deleteResource(body.id, id, client_id)
+          async (username, client_id) =>
+            await deleteResource(body.id, username, client_id)
         );
         break;
       case "PUT":
@@ -75,7 +77,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await updateResource(body, id, client_id)
+          async (username, client_id) =>
+            await updateResource(body, username, client_id)
         );
         break;
       default:
@@ -124,8 +127,8 @@ async function addResource({ name, type, description }, createdBy, client_id) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    `INSERT into ${client_id}_resources (name, type, description, createdBy, updatedby createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $6)`,
-    [name, type, description, createdBy, date_now, date_now]
+    `INSERT into ${client_id}_resources (name, type, description, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $4, $5, $5)`,
+    [name, type, description, createdBy, date_now]
   );
   await addclienttransaction(createdBy, client_id, "ADD_RESOURCE");
   return ["Resource Successfully Added", 200];

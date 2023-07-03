@@ -23,7 +23,7 @@ async function authorize(
           if (!authorizations.includes(accesscode))
             return ["Not Authorized", 403];
         }
-        return await apifunction(res.id, res.client_id);
+        return await apifunction(res.username, res.client_id);
       } else return ["Not Authorized", 403];
     }
   );

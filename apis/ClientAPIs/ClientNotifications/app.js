@@ -23,12 +23,12 @@ exports.lambdaHandler = async (event, context) => {
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
-            authcode.GET_BUILDING,
+            authcode.GET_NOTIFICATION,
             ip,
             useragent,
             token,
             async (username, client_id) =>
-              await getBuilding(event.pathParameters.id, client_id)
+              await getNotification(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
@@ -36,12 +36,18 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
-              authcode.GET_BUILDING,
+              authcode.GET_NOTIFICATION,
               ip,
               useragent,
               token,
               async (username, client_id) =>
-                await getBuildings(page, limit, params.searchText, client_id)
+                await getNotifications(
+                  page,
+                  limit,
+                  params.searchText,
+                  client_id,
+                  username
+                )
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -53,34 +59,34 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.ADD_BUILDING,
+          authcode.ADD_NOTIFICATION,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await addBuilding(body, username, client_id)
+            await addNotification(body, username, client_id)
         );
         break;
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.DELETE_BUILDING,
+          authcode.DELETE_NOTIFICATION,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await deleteBuilding(body.id, username, client_id)
+            await deleteNotification(body.id, username, client_id)
         );
         break;
       case "PUT":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.UPDATE_BUILDING,
+          authcode.UPDATE_NOTIFICATION,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await updateBuilding(body, username, client_id)
+            await updateNotification(body, username, client_id)
         );
         break;
       default:
@@ -95,60 +101,67 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getBuildings(page = 1, limit = 10, searchText = "", client_id) {
+async function getNotifications(
+  page = 1,
+  limit = 10,
+  searchText = "",
+  client_id,
+  username
+) {
   let offset = (page - 1) * limit;
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings ORDER BY building_name OFFSET $1 LIMIT $2`,
-      [offset, limit]
+      `SELECT nt.*, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) ORDER BY nt.id OFFSET $2 LIMIT $3`,
+      [username, offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_buildings WHERE building_name iLIKE $1 OR building_area iLIKE $1 OR contact_number iLIKE $1 ORDER BY building_name OFFSET $2 LIMIT $3`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_notifications WHERE id iLIKE $1 OR type iLIKE $1 OR contract_id iLIKE $1 ORDER BY id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getBuilding(id, client_id) {
-  let building_id = parseInt(id);
+async function getNotification(id, client_id) {
+  let notification_id = parseInt(id);
   const data = await db.any(
-    `SELECT * FROM ${client_id}_buildings WHERE id = $1`,
-    [building_id]
+    `SELECT nt.*, sys.name as system_name, sys.tag as system_tag FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id WHERE nt.id = $1`,
+    [notification_id]
   );
   return [data, 200];
 }
 
-async function addBuilding(data, createdBy, client_id) {
+async function addNotification(
+  { description, type, status, system_id, asset_ids },
+  createdBy,
+  client_id
+) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbinsert(data, client_id, "buildings");
-  const building = await db.one(`${sql_stmt} RETURNING id`, [
-    ...col_values,
-    createdBy,
-    createdBy,
-    date_now,
-    date_now,
-  ]);
-  await addclienttransaction(createdBy, client_id, "ADD_BUILDING");
-  return [building, 200];
+
+  const notification = await db.one(
+    `INSERT INTO ${client_id}_notifications (description, type, status, system_id, contract_id, building_controller, asset_ids, createdby, createdat) VALUES ($1, $2, $3, $4, ( SELECT current_contract FROM ${client_id}_systems WHERE id = $4 ), ( SELECT bld.building_controller FROM ${client_id}_buildings bld JOIN ${client_id}_systems sys ON bld.id = sys.building_id  WHERE sys.id = $4 ), $5, $6, $7) RETURNING id`,
+    [description, type, status, system_id, asset_ids, createdBy, date_now]
+  );
+  await addclienttransaction(createdBy, client_id, "ADD_NOTIFICATION");
+  return [notification, 200];
 }
 
-async function updateBuilding({ id, data }, updatedby, client_id) {
+async function updateNotification({ id, data }, updatedby, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbupdate(data, client_id, "buildings");
+  let [sql_stmt, col_values] = obdbupdate(data, client_id, "notifications");
   await db.none(sql_stmt, [...col_values, updatedby, date_now, id]);
-  await addclienttransaction(updatedby, client_id, "UPDATE_BUILDING");
-  return ["Building Successfully Updated", 200];
+  await addclienttransaction(updatedby, client_id, "UPDATE_NOTIFICATION");
+  return ["Notification Successfully Updated", 200];
 }
 
-async function deleteBuilding(id, deletedby, client_id) {
-  let building_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_buildings WHERE id = $1`, [
-    building_id,
+async function deleteNotification(id, deletedby, client_id) {
+  let notification_id = parseInt(id);
+  await db.none(`DELETE FROM ${client_id}_notifications WHERE id = $1`, [
+    notification_id,
   ]);
-  await addclienttransaction(deletedby, client_id, "DELETE_BUILDING");
-  return ["Building Successfully Deleted", 200];
+  await addclienttransaction(deletedby, client_id, "DELETE_NOTIFICATION");
+  return ["Notification Successfully Deleted", 200];
 }

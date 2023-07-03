@@ -27,7 +27,7 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await getPresignedUrl(body)
+          async (username, client_id) => await getPresignedUrl(body)
         );
         break;
 
@@ -38,7 +38,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await createPresignedUrl(body, id, client_id)
+          async (username, client_id) =>
+            await createPresignedUrl(body, username, client_id)
         );
         break;
 
@@ -49,7 +50,8 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id, client_id) => await deleteFile(body, id, client_id)
+          async (username, client_id) =>
+            await deleteFile(body, username, client_id)
         );
         break;
 
@@ -67,7 +69,7 @@ exports.lambdaHandler = async (event, context) => {
 
 async function createPresignedUrl(
   { type, type_name, file_name, content_type },
-  id,
+  username,
   client_id
 ) {
   AWS.config.update({ region: process.env.REGION });
@@ -82,7 +84,7 @@ async function createPresignedUrl(
   };
   let uploadURL = s3.getSignedUrl("putObject", s3Params);
 
-  await addclienttransaction(id, client_id, "FILE_UPLOAD");
+  await addclienttransaction(username, client_id, "FILE_UPLOAD");
   return [{ uploadURL, filepath }, 200];
 }
 async function getPresignedUrl({ filepath }) {
@@ -100,7 +102,7 @@ async function getPresignedUrl({ filepath }) {
   return [viewURL, 200];
 }
 
-async function deleteFile({ filepath }, id, client_id) {
+async function deleteFile({ filepath }, username, client_id) {
   const client = new S3Client({ region: process.env.REGION });
   const command = new DeleteObjectCommand({
     Bucket: process.env.BUCKET,
@@ -109,6 +111,6 @@ async function deleteFile({ filepath }, id, client_id) {
   const response = await client.send(command);
   console.log(response);
 
-  await addclienttransaction(id, client_id, "FILE_DELETE");
+  await addclienttransaction(username, client_id, "FILE_DELETE");
   return ["File deleted successfully", 200];
 }
