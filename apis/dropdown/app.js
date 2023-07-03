@@ -37,6 +37,7 @@ exports.lambdaHandler = async (event, context) => {
           path === "contracts" ||
           path === "systemfields" ||
           path === "systems" ||
+          path === "assets" ||
           path === "users" ||
           path === "building_controllers" ||
           path === "authCodes"
@@ -66,6 +67,25 @@ exports.lambdaHandler = async (event, context) => {
             async (username, client_id) =>
               await getBuildingControllers(client_id)
           );
+        } else if (path === "assets") {
+          if (
+            event.queryStringParameters &&
+            event.queryStringParameters.system_id
+          ) {
+            [data, statusCode] = await authorize(
+              authcode.GET_ASSET,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) =>
+                await getAssets(
+                  event.queryStringParameters.system_id,
+                  client_id
+                )
+            );
+          } else {
+            [data, statusCode] = ["Error: Invalid request", 400];
+          }
         } else if (path === "occupancyClassification") {
           [data, statusCode] = await authorize(
             authcode.GET_BUILDING,
@@ -318,6 +338,17 @@ async function getBuildings(client_id) {
   return [data, statusCode];
 }
 
+//Getting data from Assets table with System ID
+async function getAssets(system_id, client_id) {
+  const data = await db.any(
+    `SELECT id, name FROM ${client_id}_assets WHERE system_id = $1`,
+    [system_id]
+  );
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from Assets table with Contract Status and Building ID
 async function getSystemsSB(status, building_id, client_id) {
   const data = await db.any(
     `SELECT cs.id, cs.name FROM ${client_id}_systems cs JOIN ${client_id}_contracts cc ON cs.current_contract = cc.id  WHERE cc.status = $1 AND cs.building_id = $2`,
@@ -438,6 +469,7 @@ async function saveRequiredfields(fields, updatedby, client_id) {
   return ["Sucessfully Updated", statusCode];
 }
 
+//Getting Required Building Fields from Configurations Table
 async function getBuildingFields(client_id) {
   const data = await db.one(
     `SELECT configuration FROM ${client_id}_configurations WHERE name = $1`,
@@ -447,18 +479,21 @@ async function getBuildingFields(client_id) {
   return [data, statusCode];
 }
 
+//Getting data from Country ISO
 async function getAllCountries() {
   const data = await db.any("SELECT country_iso, name FROM country_iso");
   let statusCode = 200;
   return [data, statusCode];
 }
 
+//Getting data from systemtypes table
 async function getAllSystemtypes() {
   const data = await db.any("SELECT id, name FROM systemtypes");
   let statusCode = 200;
   return [data, statusCode];
 }
 
+//Getting systemfields from systemtypes table
 async function getSystemFields(id) {
   let system_id = parseInt(id);
   const data = await db.one(
@@ -469,6 +504,7 @@ async function getSystemFields(id) {
   return [data, statusCode];
 }
 
+//Getting data from devicetypes table
 async function getAllDeviceTypes(id) {
   const data = await db.any(
     "SELECT id, name FROM devicetypes WHERE systemid= $1 ",
@@ -478,6 +514,7 @@ async function getAllDeviceTypes(id) {
   return [data, statusCode];
 }
 
+//Getting data from user roles table
 async function getAllRoles(client_id) {
   const data = await db.any(
     `SELECT id, role, authorizations FROM ${client_id}_user_roles`
@@ -486,12 +523,14 @@ async function getAllRoles(client_id) {
   return [data, statusCode];
 }
 
+//Getting data from authcodes table
 async function getAllAuthCodes() {
   const data = await db.any(`SELECT * FROM auth_codes ORDER BY module`);
   let statusCode = 200;
   return [data, statusCode];
 }
 
+//Getting data from employees table
 async function getAllEmployees(client_id) {
   const data = await db.any(`SELECT id, full_name FROM ${client_id}_employees`);
   let statusCode = 200;
