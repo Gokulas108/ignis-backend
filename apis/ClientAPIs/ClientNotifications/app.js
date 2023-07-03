@@ -112,14 +112,14 @@ async function getNotifications(
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT nt.*, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) ORDER BY nt.id OFFSET $2 LIMIT $3`,
+      `SELECT nt.*, sys.name as system_name, sys.tag as system_tag, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) ORDER BY nt.id OFFSET $2 LIMIT $3`,
       [username, offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_notifications WHERE id iLIKE $1 OR type iLIKE $1 OR contract_id iLIKE $1 ORDER BY id OFFSET $2 LIMIT $3`,
-      [searchText, offset, limit]
+      `SELECT nt.*, sys.name as system_name, sys.tag as system_tag, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) AND nt.description iLIKE $2 ORDER BY nt.id OFFSET $3 LIMIT $4`,
+      [username, searchText, offset, limit]
     );
   }
   return [data, 200];

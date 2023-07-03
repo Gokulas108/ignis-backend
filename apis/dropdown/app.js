@@ -38,6 +38,7 @@ exports.lambdaHandler = async (event, context) => {
           path === "systemfields" ||
           path === "systems" ||
           path === "assets" ||
+          path === "frequency" ||
           path === "users" ||
           path === "building_controllers" ||
           path === "authCodes"
@@ -157,6 +158,8 @@ exports.lambdaHandler = async (event, context) => {
           [data, statusCode] = await getAllCountries();
         } else if (path === "systemtypes") {
           [data, statusCode] = await getAllSystemtypes();
+        } else if (path === "frequency") {
+          [data, statusCode] = await getFrequency();
         } else if (path === "systemfields") {
           if (event.queryStringParameters && event.queryStringParameters.id) {
             [data, statusCode] = await getSystemFields(
@@ -489,6 +492,13 @@ async function getAllCountries() {
 //Getting data from systemtypes table
 async function getAllSystemtypes() {
   const data = await db.any("SELECT id, name FROM systemtypes");
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from frequency table
+async function getFrequency() {
+  const data = await db.any("SELECT id, name FROM frequency");
   let statusCode = 200;
   return [data, statusCode];
 }
