@@ -87,24 +87,23 @@ async function getSuperAdmins(page = 1, limit = 10, searchText = "") {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT sa.id as id, sa.name AS name, sa.username AS username, sa.role as role, count(sa.*) OVER() AS full_count FROM superadmins sa ORDER BY sa.name OFFSET $1 LIMIT $2`,
+      `SELECT  sa.name AS name, sa.username AS username, sa.role as role, count(sa.*) OVER() AS full_count FROM superadmins sa ORDER BY sa.name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT sa.id as id, sa.name AS name, sa.username AS username, sa.role as role, cli.name as client, count(sa.*) OVER() AS full_count FROM superadmins sa WHERE sa.name iLIKE $1 OR sa.username iLIKE $1 ORDER BY sa.name OFFSET $2 LIMIT $3`,
+      `SELECT  sa.name AS name, sa.username AS username, sa.role as role,  count(sa.*) OVER() AS full_count FROM superadmins sa WHERE sa.name iLIKE $1 OR sa.username iLIKE $1 ORDER BY sa.name OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getSuperAdmin(id) {
-  let sa_id = parseInt(id);
+async function getSuperAdmin(username) {
   const data = await db.any(
-    "SELECT sa.id as id, sa.name as name, sa.username as username, sa.role as role, cli.name as client FROM superadmins sa WHERE sa.id = $1",
-    [sa_id]
+    "SELECT sa.name as name, sa.username as username, sa.role as role, cli.name as client FROM superadmins sa WHERE sa.username = $1",
+    [username]
   );
   return [data, 200];
 }
@@ -127,8 +126,7 @@ async function addSuperAdmin(
   return ["Super Admin Successfully Added", 200];
 }
 
-async function deleteSuperAdmin(id) {
-  let user_id = parseInt(id);
-  await db.none("DELETE FROM superadmins WHERE id = $1", [user_id]);
+async function deleteSuperAdmin(username) {
+  await db.none("DELETE FROM superadmins WHERE username = $1", [username]);
   return ["Super Admin Successfully Deleted", 200];
 }

@@ -67,7 +67,6 @@ async function login(userInfo, ip, useragent) {
       return ["Error: Incorrect password", 403];
     }
     let new_user = {
-      id: user.id,
       username: user.username,
       name: user.name,
       first_login: user.first_login,

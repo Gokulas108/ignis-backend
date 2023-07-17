@@ -108,13 +108,13 @@ async function getDevices(
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT device.* , sa.name as uname, sa.username as username, sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN superadmins sa ON device.createdBy = sa.id JOIN systemtypes sys ON device.systemid = sys.id ORDER BY device.name OFFSET $1 LIMIT $2`,
+      `SELECT device.* ,  sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id ORDER BY device.name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT device.* , sa.name as uname, sa.username as username, sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN superadmins sa ON device.createdBy = sa.id JOIN systemtypes sys ON device.systemid = sys.id WHERE device.name iLIKE $1 OR user.name iLIKE $1 OR user.username iLIKE $1  OR sys.name iLIKE $1 ORDER BY device.name OFFSET $2 LIMIT $3`,
+      `SELECT device.* , sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id WHERE device.name iLIKE $1  OR sys.name iLIKE $1 ORDER BY device.name OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -124,7 +124,7 @@ async function getDevices(
 async function getDevice(id) {
   let device_id = parseInt(id);
   const data = await db.any(
-    "SELECT device.*, sa.name as uname, sa.username, sys.name as sysname FROM devicetypes device JOIN superadmins sa ON device.createdBy= sa.id JOIN systemtypes sys ON device.systemid = sys.id WHERE device.id = $1",
+    "SELECT device.*, sys.name as sysname FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id WHERE device.id = $1",
     [device_id]
   );
   return [data, 200];
@@ -139,6 +139,7 @@ async function deleteDevice(id) {
 async function addDevice(
   {
     name,
+    frequency,
     systemid,
     general_fields,
     inspection_fields,
@@ -153,7 +154,7 @@ async function addDevice(
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into devicetypes (name, systemid, general_fields, inspection_fields ,testing_fields, maintenance_fields, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3::json[], $4::json[], $5::json[],$6::json[], $7, $7, $8, $9)",
+    "INSERT into devicetypes (name, systemid, general_fields, inspection_fields ,testing_fields, maintenance_fields, frequency, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3::json[], $4::json[], $5::json[],$6::json[],$7, $8, $8, $9, $9)",
     [
       name,
       systemid,
@@ -161,8 +162,8 @@ async function addDevice(
       inspection_fields,
       testing_fields,
       maintenance_fields,
+      frequency,
       createdBy,
-      date_now,
       date_now,
     ]
   );
@@ -171,18 +172,26 @@ async function addDevice(
 }
 
 async function updateDevice(
-  { id, general_fields, inspection_fields, testing_fields, maintenance_fields },
+  {
+    id,
+    frequency,
+    general_fields,
+    inspection_fields,
+    testing_fields,
+    maintenance_fields,
+  },
   updatedby
 ) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "UPDATE devicetypes SET general_fields =  $1::json[], inspection_fields = $2::json[] ,testing_fields = $3::json[] ,maintenance_fields = $4::json[] , updatedAt = $5 , updatedby = $6 WHERE id = $7 ",
+    "UPDATE devicetypes SET general_fields =  $1::json[], inspection_fields = $2::json[] ,testing_fields = $3::json[] ,maintenance_fields = $4::json[] , frequency = $5, updatedAt = $6 , updatedby = $7 WHERE id = $8 ",
     [
       general_fields,
       inspection_fields,
       testing_fields,
       maintenance_fields,
+      frequency,
       date_now,
       updatedby,
       id,

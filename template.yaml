@@ -231,6 +231,20 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #ClientMessages API to Add/View/Delete Messages
+  MessagesAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientMessages/
+      Events:
+        ClientMessagesApi:
+          Type: Api
+          Properties:
+            Path: /ClientMessages/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #ClientUsers API to Add/View/Modify/Delete ClientUsers
   ClientUsersAPIFunction:
     Type: AWS::Serverless::Function
@@ -360,6 +374,25 @@ Resources:
           Type: Api
           Properties:
             Path: /clientassets/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientWorkOrders API to Add/View/Modify/Delete ClientWorkOrders
+  ClientWorkOrdersAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientWorkOrders/
+      Events:
+        ClientWorkOrdersApi:
+          Type: Api
+          Properties:
+            Path: /clientWorkOrders
+            Method: ANY
+        ClientWorkOrderApi:
+          Type: Api
+          Properties:
+            Path: /clientWorkOrders/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer

@@ -36,6 +36,9 @@ exports.lambdaHandler = async (event, context) => {
           path === "buildings" ||
           path === "contracts" ||
           path === "systemfields" ||
+          path === "devicefields" ||
+          path === "leadexecutor" ||
+          path === "resources" ||
           path === "systems" ||
           path === "assets" ||
           path === "frequency" ||
@@ -86,6 +89,60 @@ exports.lambdaHandler = async (event, context) => {
             );
           } else {
             [data, statusCode] = ["Error: Invalid request", 400];
+          }
+        } else if (path === "leadexecutor") {
+          if (
+            event.queryStringParameters &&
+            event.queryStringParameters.start &&
+            event.queryStringParameters.end
+          ) {
+            [data, statusCode] = await authorize(
+              authcode.GET_USER,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) =>
+                await getAvailableLeadExecutor(
+                  event.queryStringParameters.start,
+                  event.queryStringParameters.end,
+                  client_id
+                )
+            );
+          } else {
+            [data, statusCode] = await authorize(
+              authcode.GET_USER,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) => await getLeadExecutor(client_id)
+            );
+          }
+        } else if (path === "resources") {
+          if (
+            event.queryStringParameters &&
+            event.queryStringParameters.start &&
+            event.queryStringParameters.end
+          ) {
+            [data, statusCode] = await authorize(
+              authcode.GET_RESOURCE,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) =>
+                await getAvailableResources(
+                  event.queryStringParameters.start,
+                  event.queryStringParameters.end,
+                  client_id
+                )
+            );
+          } else {
+            [data, statusCode] = await authorize(
+              authcode.GET_RESOURCE,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) => await getResources(client_id)
+            );
           }
         } else if (path === "occupancyClassification") {
           [data, statusCode] = await authorize(
@@ -166,6 +223,12 @@ exports.lambdaHandler = async (event, context) => {
               event.queryStringParameters.id
             );
           }
+        } else if (path === "devicefields") {
+          if (event.queryStringParameters && event.queryStringParameters.id) {
+            [data, statusCode] = await getDeviceFields(
+              event.queryStringParameters.id
+            );
+          }
         } else if (path === "clientRoles") {
           [data, statusCode] = await authorize(
             authcode.GET_USER_ROLE,
@@ -188,6 +251,21 @@ exports.lambdaHandler = async (event, context) => {
               async (username, client_id) =>
                 await getSystemsSB(
                   event.queryStringParameters.status,
+                  event.queryStringParameters.building_id,
+                  client_id
+                )
+            );
+          } else if (
+            event.queryStringParameters &&
+            event.queryStringParameters.building_id
+          ) {
+            [data, statusCode] = await authorize(
+              authcode.GET_SYSTEM,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) =>
+                await getSystemsB(
                   event.queryStringParameters.building_id,
                   client_id
                 )
@@ -218,6 +296,21 @@ exports.lambdaHandler = async (event, context) => {
           ) {
             [data, statusCode] = await getAllDeviceTypes(
               event.queryStringParameters.system
+            );
+          } else if (
+            event.queryStringParameters &&
+            event.queryStringParameters.system_id
+          ) {
+            [data, statusCode] = await authorize(
+              authcode.GET_SYSTEM,
+              ip,
+              useragent,
+              token,
+              async (username, client_id) =>
+                await getAllDeviceTypesSys(
+                  event.queryStringParameters.system_id,
+                  client_id
+                )
             );
           }
         } else {
@@ -344,14 +437,71 @@ async function getBuildings(client_id) {
 //Getting data from Assets table with System ID
 async function getAssets(system_id, client_id) {
   const data = await db.any(
-    `SELECT id, name FROM ${client_id}_assets WHERE system_id = $1`,
+    `SELECT ast.id, dev.name AS name FROM ${client_id}_assets ast JOIN devicetypes dev ON ast.type_id = dev.id  WHERE system_id = $1`,
     [system_id]
   );
   let statusCode = 200;
   return [data, statusCode];
 }
 
-//Getting data from Assets table with Contract Status and Building ID
+//Getting lead technicians from users table
+async function getLeadExecutor(client_id) {
+  const data = await db.any(
+    `SELECT us.username, us.name, rl.role FROM ${client_id}_users us JOIN ${client_id}_user_roles rl ON us.role = rl.id  WHERE $1 = ANY(rl.authorizations)`,
+    [authcode.LEAD_EXECUTOR]
+  );
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting available lead technicians from users table
+async function getAvailableLeadExecutor(start, end, client_id) {
+  const data = await db.any(
+    `SELECT us.username, us.name, rl.role FROM ${client_id}_users us JOIN ${client_id}_user_roles rl ON us.role = rl.id  WHERE $1 = ANY(rl.authorizations) AND us.username NOT IN (SELECT lead_executor FROM ${client_id}_workorders WHERE NOT (start > $2 OR "end" < $3))`,
+    [authcode.LEAD_TECHNICIAN, start, end]
+  );
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from resources table
+async function getResources(client_id) {
+  const resources = await db.any(
+    `SELECT id, name, type FROM ${client_id}_resources ORDER BY type`
+  );
+  const employees = await db.any(
+    `SELECT id, full_name FROM ${client_id}_employees`
+  );
+  let statusCode = 200;
+  return [{ resources, employees }, statusCode];
+}
+
+//Getting available resources from resources table
+async function getAvailableResources(start, end, client_id) {
+  const resources = await db.any(
+    `SELECT id, name, type FROM ${client_id}_resources WHERE id NOT IN (SELECT resource_id FROM ${client_id}_resource_schedule WHERE NOT (start > $1 OR "end" < $2)) ORDER BY type`,
+    [start, end]
+  );
+  const employees = await db.any(
+    `SELECT id, full_name FROM ${client_id}_employees WHERE id NOT IN (SELECT employee_id FROM ${client_id}_employee_schedule WHERE NOT (start > $1 OR "end" < $2))`,
+    [start, end]
+  );
+  let statusCode = 200;
+  return [{ resources, employees }, statusCode];
+}
+
+//Getting data from Systems table with Building ID
+async function getSystemsB(building_id, client_id) {
+  const data = await db.any(
+    `SELECT id, name FROM ${client_id}_systems WHERE building_id = $1`,
+    [building_id]
+  );
+
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from Systems table with Contract Status and Building ID
 async function getSystemsSB(status, building_id, client_id) {
   const data = await db.any(
     `SELECT cs.id, cs.name FROM ${client_id}_systems cs JOIN ${client_id}_contracts cc ON cs.current_contract = cc.id  WHERE cc.status = $1 AND cs.building_id = $2`,
@@ -514,10 +664,31 @@ async function getSystemFields(id) {
   return [data, statusCode];
 }
 
-//Getting data from devicetypes table
+//Getting Devicefields from Devicetypes table
+async function getDeviceFields(id) {
+  let Device_id = parseInt(id);
+  const data = await db.one(
+    "SELECT general_fields FROM devicetypes WHERE id = $1",
+    [Device_id]
+  );
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from devicetypes table using sytem type id
 async function getAllDeviceTypes(id) {
   const data = await db.any(
-    "SELECT id, name FROM devicetypes WHERE systemid= $1 ",
+    "SELECT id, name, frequency FROM devicetypes WHERE systemid= $1 ",
+    [id]
+  );
+  let statusCode = 200;
+  return [data, statusCode];
+}
+
+//Getting data from devicetypes table using client system id
+async function getAllDeviceTypesSys(id, client_id) {
+  const data = await db.any(
+    `SELECT dev.id, dev.name, dev.frequency FROM devicetypes dev JOIN ${client_id}_systems sys ON dev.systemid = sys.type  WHERE sys.id = $1 `,
     [id]
   );
   let statusCode = 200;

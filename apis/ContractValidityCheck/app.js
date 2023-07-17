@@ -6,11 +6,9 @@ exports.lambdaHandler = async (event, context) => {
     [1]
   );
   data.forEach(async ({ client_id, timezone }) => {
-    let date_now = new Date().toISOString(
-      new Date().toLocaleString("en-US", {
-        timeZone: timezone,
-      })
-    );
+    let date_now = new Date(
+      new Date().toLocaleString("en-US", { timeZone: timezone })
+    ).toISOString();
     await db.none(
       `UPDATE ${client_id}_contracts SET status = $1 WHERE $2 BETWEEN from_date AND to_date AND status != $1`,
       ["ACTIVE", date_now]

@@ -43,4 +43,12 @@ module.exports = {
   ADD_ASSET: "at02",
   DELETE_ASSET: "at03",
   UPDATE_ASSET: "at04",
+  GET_WORK_ORDER: "wo01",
+  ADD_WORK_ORDER: "wo02",
+  DELETE_WORK_ORDER: "wo03",
+  UPDATE_WORK_ORDER: "wo04",
+  LEAD_EXECUTOR: "le00",
+  GET_MESSAGE: "mg01",
+  ADD_MESSAGE: "mg02",
+  DELETE_MESSAGE: "mg03",
 };

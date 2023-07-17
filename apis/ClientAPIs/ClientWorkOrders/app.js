@@ -23,12 +23,12 @@ exports.lambdaHandler = async (event, context) => {
         if (event.pathParameters && event.pathParameters.id) {
           console.log(event.pathParameters.id);
           [data, statusCode] = await authorize(
-            authcode.GET_ASSET,
+            authcode.GET_WORK_ORDER,
             ip,
             useragent,
             token,
             async (username, client_id) =>
-              await getAsset(event.pathParameters.id, client_id)
+              await getWorkOrder(event.pathParameters.id, client_id)
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
@@ -36,12 +36,12 @@ exports.lambdaHandler = async (event, context) => {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             [data, statusCode] = await authorize(
-              authcode.GET_ASSET,
+              authcode.GET_WORK_ORDER,
               ip,
               useragent,
               token,
               async (username, client_id) =>
-                await getAssets(page, limit, params.searchText, client_id)
+                await getWorkOrders(page, limit, params.searchText, client_id)
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -53,34 +53,34 @@ exports.lambdaHandler = async (event, context) => {
       case "POST":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.ADD_ASSET,
+          authcode.ADD_WORK_ORDER,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await addAsset(body, username, client_id)
+            await addWorkOrder(body, username, client_id)
         );
         break;
       case "DELETE":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.DELETE_ASSET,
+          authcode.DELETE_WORK_ORDER,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await deleteAsset(body.id, username, client_id)
+            await deleteWorkOrder(body.id, username, client_id)
         );
         break;
       case "PUT":
         body = JSON.parse(event.body);
         [data, statusCode] = await authorize(
-          authcode.UPDATE_ASSET,
+          authcode.UPDATE_WORK_ORDER,
           ip,
           useragent,
           token,
           async (username, client_id) =>
-            await updateAsset(body, username, client_id)
+            await updateWorkOrder(body, username, client_id)
         );
         break;
       default:
@@ -95,57 +95,60 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getAssets(page = 1, limit = 10, searchText = "", client_id) {
+async function getWorkOrders(page = 1, limit = 10, searchText = "", client_id) {
   let offset = (page - 1) * limit;
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT ast.*, sys.name AS system_name, sys.tag AS system_tag, dev.name AS device_name, dev.frequency AS nfpa_frequency, dev.general_fields AS general_fields, bld.building_name AS building_name,  count(ast.*) OVER() AS full_count FROM ${client_id}_assets ast JOIN ${client_id}_systems sys ON ast.system_id = sys.id JOIN devicetypes dev ON ast.type_id = dev.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id ORDER BY ast.id OFFSET $1 LIMIT $2`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_workorders ORDER BY id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT ast.*, sys.name AS system_name, sys.tag AS system_tag, dev.name AS device_name, dev.frequency AS nfpa_frequency, dev.general_fields AS general_fields, bld.building_name AS building_name,  count(ast.*) OVER() AS full_count FROM ${client_id}_assets ast JOIN ${client_id}_systems sys ON ast.system_id = sys.id JOIN devicetypes dev ON ast.type_id = dev.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id WHERE bld.name iLIKE $1 OR sys.name iLIKE $1 OR ast.tag iLIKE $1 OR dev.name iLIKE $1 ORDER BY ast.id OFFSET $2 LIMIT $3`,
+      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_workorders WHERE id iLIKE $1 OR notification_id iLIKE $1 OR remarks iLIKE $1 ORDER BY id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getAsset(id, client_id) {
-  let asset_id = parseInt(id);
-  const data = await db.any(`SELECT * FROM ${client_id}_assets WHERE id = $1`, [
-    asset_id,
-  ]);
+async function getWorkOrder(id, client_id) {
+  let workorder_id = parseInt(id);
+  const data = await db.any(
+    `SELECT * FROM ${client_id}_workorders WHERE id = $1`,
+    [workorder_id]
+  );
   return [data, 200];
 }
 
-async function addAsset(data, createdBy, client_id) {
+async function addWorkOrder(data, createdBy, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbinsert(data, client_id, "assets");
-  const asset = await db.one(`${sql_stmt} RETURNING id`, [
+  let [sql_stmt, col_values] = obdbinsert(data, client_id, "workorders");
+  const workorder = await db.one(`${sql_stmt} RETURNING id`, [
     ...col_values,
     createdBy,
     createdBy,
     date_now,
     date_now,
   ]);
-  await addclienttransaction(createdBy, client_id, "ADD_ASSET");
-  return [asset, 200];
+  await addclienttransaction(createdBy, client_id, "ADD_WORK_ORDER");
+  return [workorder, 200];
 }
 
-async function updateAsset({ id, data }, updatedby, client_id) {
+async function updateWorkOrder({ id, data }, updatedby, client_id) {
   const date_now = new Date().toISOString();
-  let [sql_stmt, col_values] = obdbupdate(data, client_id, "assets");
+  let [sql_stmt, col_values] = obdbupdate(data, client_id, "workorders");
   await db.none(sql_stmt, [...col_values, updatedby, date_now, id]);
-  await addclienttransaction(updatedby, client_id, "UPDATE_ASSET");
-  return ["Asset Successfully Updated", 200];
+  await addclienttransaction(updatedby, client_id, "UPDATE_WORK_ORDER");
+  return ["WorkOrder Successfully Updated", 200];
 }
 
-async function deleteAsset(id, deletedby, client_id) {
-  let asset_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_assets WHERE id = $1`, [asset_id]);
-  await addclienttransaction(deletedby, client_id, "DELETE_ASSET");
-  return ["Asset Successfully Deleted", 200];
+async function deleteWorkOrder(id, deletedby, client_id) {
+  let workorder_id = parseInt(id);
+  await db.none(`DELETE FROM ${client_id}_workorders WHERE id = $1`, [
+    workorder_id,
+  ]);
+  await addclienttransaction(deletedby, client_id, "DELETE_WORK_ORDER");
+  return ["WorkOrder Successfully Deleted", 200];
 }

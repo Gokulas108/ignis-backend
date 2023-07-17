@@ -85,13 +85,13 @@ async function getAHJs(page = 1, limit = 10, searchText = "") {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT ahj.* , sa.name as uname, sa.username as username ,count(ahj.*)  OVER() AS full_count FROM ahjs ahj JOIN superadmins sa ON ahj.createdby = sa.id ORDER BY ahj.name OFFSET $1 LIMIT $2`,
+      `SELECT ahj.*, count(ahj.*)  OVER() AS full_count FROM ahjs ahj ORDER BY ahj.name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT ahj.* , sa.name as uname, sa.username as username ,count(ahj.*)  OVER() AS full_count FROM ahjs ahj JOIN superadmins sa ON ahj.createdby = sa.id  WHERE ahj.name iLIKE $1 OR ahj.country iLIKE $1 ORDER BY ahj.name OFFSET $2 LIMIT $3`,
+      `SELECT ahj.*, count(ahj.*)  OVER() AS full_count FROM ahjs ahj  WHERE ahj.name iLIKE $1 OR ahj.country iLIKE $1 ORDER BY ahj.name OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -100,10 +100,7 @@ async function getAHJs(page = 1, limit = 10, searchText = "") {
 
 async function getAHJ(id) {
   let ahj_id = parseInt(id);
-  const data = await db.any(
-    "SELECT ahj.*, sa.name as uname, sa.username as username FROM ahjs ahj JOIN superadmins sa ON ahj.createdby = sa.id  WHERE id = $1",
-    [ahj_id]
-  );
+  const data = await db.any("SELECT * FROM ahjs WHERE id = $1", [ahj_id]);
   return [data, 200];
 }
 
@@ -120,8 +117,8 @@ async function addAHJ({ name, country }, createdBy) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into ahjs (name, country,  createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $5)",
-    [name, country, createdBy, date_now, date_now]
+    "INSERT into ahjs (name, country,  createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $4)",
+    [name, country, createdBy, date_now]
   );
 
   return ["AHJ Successfully Added", 200];

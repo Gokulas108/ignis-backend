@@ -100,13 +100,13 @@ async function getSystems(page = 1, limit = 10, searchText = "", client_id) {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems  cs JOIN systemtypes sys ON cs.type = sys.id JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id ORDER BY cs.id OFFSET $1 LIMIT $2`,
+      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems  cs JOIN systemtypes sys ON cs.type = sys.id LEFT JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id ORDER BY cs.id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id WHERE cs.name iLIKE $1 OR cs.systemtype iLIKE $1 OR cs.tag iLIKE $1 OR cs.contract_id iLIKE $1 ORDER BY cs.id OFFSET $2 LIMIT $3`,
+      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id LEFT JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id WHERE cs.name iLIKE $1 OR cs.systemtype iLIKE $1 OR cs.tag iLIKE $1 OR cs.contract_id iLIKE $1 ORDER BY cs.id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }

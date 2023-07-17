@@ -101,13 +101,13 @@ async function getSystems(page = 1, limit = 10, searchText = "") {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT sys.* , sa.name as uname, sa.username as username, count(sys.*) OVER() AS full_count FROM systemtypes sys JOIN superadmins sa ON sys.createdBy = sa.id ORDER BY sys.name OFFSET $1 LIMIT $2`,
+      `SELECT sys.*  count(sys.*) OVER() AS full_count FROM systemtypes sys ORDER BY sys.name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT sys.* , sa.name as uname, sa.username as username, count(sys.*) OVER() AS full_count FROM systemtypes sys JOIN superadmins sa ON sys.createdBy = sa.id WHERE sys.name iLIKE $1 OR user.name iLIKE $1 OR user.username iLIKE $1 ORDER BY sys.name OFFSET $2 LIMIT $3`,
+      `SELECT sys.* , count(sys.*) OVER() AS full_count FROM systemtypes sys WHERE sys.name iLIKE $1 ORDER BY sys.name OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -116,10 +116,9 @@ async function getSystems(page = 1, limit = 10, searchText = "") {
 
 async function getSystem(id) {
   let sys_id = parseInt(id);
-  const data = await db.any(
-    "SELECT sys.*, sa.name as uname, sa.username FROM systemtypes sys JOIN superadmins sa ON sys.createdBy= sa.id WHERE sys.id = $1",
-    [sys_id]
-  );
+  const data = await db.any("SELECT * FROM systemtypes WHERE id = $1", [
+    sys_id,
+  ]);
   return [data, 200];
 }
 
