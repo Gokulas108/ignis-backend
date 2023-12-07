@@ -89,13 +89,13 @@ async function getClients(page = 1, limit = 10, searchText = "") {
   let users;
   if (searchText === "") {
     users = await db.any(
-      `SELECT cli.id as id, cli.name AS name, cli.client_id AS client_id, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.id ORDER BY id DESC OFFSET $1 LIMIT $2`,
+      `SELECT cli.id as id,cli.notifiation_frequency, cli.name AS name, cli.client_id AS client_id, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.username ORDER BY id DESC OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     users = await db.any(
-      `SELECT cli.id as id, cli.name AS name, cli.client_id AS client_id, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.id  WHERE cli.name iLIKE $1 OR co.name iLIKE $1 OR sa.username iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
+      `SELECT cli.id as id, cli.notifiation_frequency, cli.name AS name, cli.client_id AS client_id, co.name AS country, sa.name AS uname, sa.username AS username, count(cli.*) OVER() AS full_count FROM client cli JOIN country_iso co ON cli.country = co.country_iso JOIN superadmins sa ON cli.createdby = sa.username  WHERE cli.name iLIKE $1 OR co.name iLIKE $1 OR sa.username iLIKE $1 ORDER BY id DESC OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -112,13 +112,16 @@ async function getClient(id) {
   return [data, 200];
 }
 
-async function addClient({ name, clientId, country }, createdby) {
+async function addClient(
+  { name, clientId, country, notifiation_frequency },
+  createdby
+) {
   if (!name || !country) throw new Error("Missing required fields");
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into client (name, client_id, country, createdby, updatedby, createdat, updatedat) VALUES ($1, $2, $3, $4, $4, $5, $6)",
-    [name, clientId, country, createdby, date_now, date_now]
+    "INSERT into client (name, client_id, country, notifiation_frequency, createdby,  updatedby, createdat, updatedat) VALUES ($1, $2, $3, $4, $5, $5, $6, $6)",
+    [name, clientId, country, notifiation_frequency, createdby, date_now]
   );
 
   return ["Client Successfully Added", 200];
@@ -132,13 +135,13 @@ async function deleteClient(id) {
   return ["Client Successfully Removed", 200];
 }
 
-async function updateClient({ id, name }, updatedby) {
+async function updateClient({ id, name, notifiation_frequency }, updatedby) {
   if (!id) throw new Error("ID Missing!");
   const date_now = new Date().toISOString();
 
   await db.none(
-    "UPDATE client SET name = $1, updatedat = $2, updatedby = $3 WHERE id = $4",
-    [name, date_now, updatedby, id]
+    "UPDATE client SET name = $1, updatedat = $2, updatedby = $3, notifiation_frequency = $4 WHERE id = $5",
+    [name, date_now, updatedby, notifiation_frequency, id]
   );
 
   return ["Client Successfully Updated", 200];

@@ -27,11 +27,15 @@ Mappings:
       region: "{{resolve:ssm:DEV_AWS_REGION}}"
 
     prod:
-      dbHost: xxxxxxxxx # Database yet to be created
-      dbName: xxxxxxxxx # Database yet to be created
-      dbUser: xxxxxxxxx # Database yet to be created
-      dbPass: xxxxxxxxx # Database yet to be created
-      dbPort: xxxxxxxxx # Database yet to be created
+      dbHost: "{{resolve:ssm:IGNIS_PROD_HOST}}"
+      dbName: "{{resolve:ssm:IGNIS_PROD_NAME}}"
+      dbUser: "{{resolve:ssm:IGNIS_PROD_USERNAME}}"
+      dbPass: "{{resolve:ssm:IGNIS_PROD_PASSWORD}}"
+      dbPort: "{{resolve:ssm:IGNIS_PROD_PORT}}"
+      secretkey: "{{resolve:ssm:DEV_SECRET_KEY}}"
+      supersecretkey: "{{resolve:ssm:DEV_SUPER_SECRET_KEY}}"
+      bucket: "{{resolve:ssm:IGNIS_PROD_BUCKET}}"
+      region: "{{resolve:ssm:IGNIS_PROD_REGION}}"
 
 Globals:
   Function:
@@ -70,6 +74,20 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #TechAuth API to authenticate TechAppUsers
+  TechAuthAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/TechnicianAppAPIs/TechAuth/
+      Events:
+        TechAuthApi:
+          Type: Api
+          Properties:
+            Path: /techauth/{proxy+}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #SuperAuth API to authenticate superadmins
   SuperAuthAPIFunction:
     Type: AWS::Serverless::Function
@@ -98,6 +116,34 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
+  #CommonFields API to update and get common fields for devicetypes
+  CommonFieldsAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/superadminapis/CommonFields/
+      Events:
+        CommonFieldsApi:
+          Type: Api
+          Properties:
+            Path: /commonfields
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #AHJpdf API to manage AHJ Report PDF Fields
+  AHJpdfAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/superadminapis/AHJpdf/
+      Events:
+        AHJpdfApi:
+          Type: Api
+          Properties:
+            Path: /AHJpdf
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
   #ContractValidityCheck API to check contract status
   ContractValidityCheckAPIFunction:
     Type: AWS::Serverless::Function
@@ -111,17 +157,102 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
-  #Assets API to manage Assets
-  AssetsAPIFunction:
+  #Dashboard API to get Dashboard Data
+  DashboardAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/assets/
+      CodeUri: apis/TechnicianAppAPIs/Dashboard/
       Events:
-        AssetsApi:
+        DashboardApi:
           Type: Api
           Properties:
-            Path: /assets/{proxy+}
+            Path: /dashboard
             Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #TechWorkOrders API to View Work Orders in Technician App
+  TechWorkOrdersAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/TechnicianAppAPIs/TechWorkOrders/
+      Events:
+        TechWorkOrdersApi:
+          Type: Api
+          Properties:
+            Path: /techworkorders
+            Method: ANY
+        TechWorkOrderApi:
+          Type: Api
+          Properties:
+            Path: /techworkorders/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ITM API to View and Execute ITM Work Orders in Technician App
+  ITMAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/TechnicianAppAPIs/ITM/
+      Events:
+        ITMsApi:
+          Type: Api
+          Properties:
+            Path: /ITM
+            Method: ANY
+        ITMApi:
+          Type: Api
+          Properties:
+            Path: /ITM/{id}
+            Method: ANY
+      Policies:
+        - S3CrudPolicy:
+            BucketName: ignis-dev
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ITMView API to View and Reset ITM Results
+  ITMViewAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/TechnicianAppAPIs/ITMView/
+      Events:
+        ITMViewsApi:
+          Type: Api
+          Properties:
+            Path: /ITMView
+            Method: ANY
+        ITMViewApi:
+          Type: Api
+          Properties:
+            Path: /ITMView/{id}
+            Method: ANY
+      Policies:
+        - S3CrudPolicy:
+            BucketName: ignis-dev
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #AssetTagging API to View and Reset ITM Results
+  AssetTaggingAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/TechnicianAppAPIs/AssetTagging/
+      Events:
+        AssetTaggingsApi:
+          Type: Api
+          Properties:
+            Path: /AssetTagging
+            Method: ANY
+        AssetTaggingApi:
+          Type: Api
+          Properties:
+            Path: /AssetTagging/{id}
+            Method: ANY
+      Policies:
+        - S3CrudPolicy:
+            BucketName: ignis-dev
       Layers:
         - !Ref GeneralDependenciesLayer
 
@@ -163,20 +294,6 @@ Resources:
           Type: Api
           Properties:
             Path: /notifications
-            Method: ANY
-      Layers:
-        - !Ref GeneralDependenciesLayer
-
-  #WorkOrders API to Add/View/Modify/Delete buildings
-  WorkOrdersAPIFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: apis/workorders/
-      Events:
-        WorkOrdersApi:
-          Type: Api
-          Properties:
-            Path: /workorders
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -231,16 +348,21 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
-  #ClientMessages API to Add/View/Delete Messages
-  MessagesAPIFunction:
+  #ClientTeams API to Add/View/Modify/Delete ClientTeams
+  ClientTeamsAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/clientapis/ClientMessages/
+      CodeUri: apis/clientapis/ClientTeams/
       Events:
-        ClientMessagesApi:
+        ClientTeamsApi:
           Type: Api
           Properties:
-            Path: /ClientMessages/{proxy+}
+            Path: /clientteams
+            Method: ANY
+        ClientTeamApi:
+          Type: Api
+          Properties:
+            Path: /clientteams/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -260,6 +382,39 @@ Resources:
           Type: Api
           Properties:
             Path: /clientusers/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientWorkOrders API to Add/View/Modify/Delete ClientWorkOrders
+  ClientWorkOrdersAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientWorkOrders/
+      Events:
+        ClientWorkOrdersApi:
+          Type: Api
+          Properties:
+            Path: /clientworkorders
+            Method: ANY
+        ClientWorkOrderApi:
+          Type: Api
+          Properties:
+            Path: /clientworkorders/{id}
+            Method: ANY
+      Layers:
+        - !Ref GeneralDependenciesLayer
+
+  #ClientMessages API to Add/View/Modify/Delete ClientMessages
+  ClientMessagesAPIFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: apis/clientapis/ClientMessages/
+      Events:
+        ClientMessagesApi:
+          Type: Api
+          Properties:
+            Path: /clientmessages/{id}
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer
@@ -378,21 +533,16 @@ Resources:
       Layers:
         - !Ref GeneralDependenciesLayer
 
-  #ClientWorkOrders API to Add/View/Modify/Delete ClientWorkOrders
-  ClientWorkOrdersAPIFunction:
+  #ClientMassUpdate API to Add/View/Modify/Delete ClientMassUpdate
+  ClientMassUpdateAPIFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: apis/clientapis/ClientWorkOrders/
+      CodeUri: apis/clientapis/ClientMassUpdate/
       Events:
-        ClientWorkOrdersApi:
+        ClientMassUpdateApi:
           Type: Api
           Properties:
-            Path: /clientWorkOrders
-            Method: ANY
-        ClientWorkOrderApi:
-          Type: Api
-          Properties:
-            Path: /clientWorkOrders/{id}
+            Path: /clientMassUpdate
             Method: ANY
       Layers:
         - !Ref GeneralDependenciesLayer

@@ -100,13 +100,13 @@ async function getSystems(page = 1, limit = 10, searchText = "", client_id) {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems  cs JOIN systemtypes sys ON cs.type = sys.id LEFT JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id ORDER BY cs.id OFFSET $1 LIMIT $2`,
+      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, bld.building_name, count(cs.*) OVER() AS full_count FROM ${client_id}_systems  cs JOIN systemtypes sys ON cs.type = sys.id LEFT JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id JOIN ${client_id}_buildings bld ON cs.building_id = bld.id ORDER BY bld.id OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id LEFT JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id WHERE cs.name iLIKE $1 OR cs.systemtype iLIKE $1 OR cs.tag iLIKE $1 OR cs.contract_id iLIKE $1 ORDER BY cs.id OFFSET $2 LIMIT $3`,
+      `SELECT cs.*, contract.status as contract_status, sys.name as systemtype, sys.general_information as fields, bld.building_name, count(cs.*) OVER() AS full_count FROM ${client_id}_systems cs JOIN systemtypes sys ON cs.type = sys.id LEFT JOIN ${client_id}_contracts contract ON cs.current_contract = contract.id JOIN ${client_id}_buildings bld ON cs.building_id = bld.id  WHERE cs.name iLIKE $1 OR sys.name iLIKE $1 OR cs.tag iLIKE $1 OR bld.building_name iLIKE $1 OR cs.current_contract iLIKE $1 ORDER BY bld.id OFFSET $2 LIMIT $3`,
       [searchText, offset, limit]
     );
   }
@@ -147,15 +147,16 @@ async function addSystem({ data, contract_id }, createdBy, client_id) {
       [contract_id, system.id]
     );
     await db.none(
-      `INSERT INTO ${client_id}_notifications (type, description, system_id, contract_id, building_controller, createdby, createdat) VALUES ($1, $2, $3, $7, ( SELECT building_controller FROM ${client_id}_buildings WHERE id = $4 ), $5, $6)`,
+      `INSERT INTO ${client_id}_notifications (type, description, system_id, contract_id, building_controller, createdby, createdat, status) VALUES ($1, $2, $3, $4, ( SELECT building_controller FROM ${client_id}_buildings WHERE id = $5 ), $6, $7, $8)`,
       [
         "Asset Tagging",
+        "Add assets for the system",
         system.id,
         contract_id,
         data.building_id,
         createdBy,
         date_now,
-        "Add assets for the system",
+        "OPEN",
       ]
     );
 
@@ -202,11 +203,15 @@ async function updateSystem(
 
 async function deleteSystem(id, deletedby, client_id) {
   let system_id = parseInt(id);
-  await db.none(`DELETE FROM ${client_id}_systems WHERE id = $1`, [system_id]);
   await db.none(
     `DELETE FROM ${client_id}_system_contract WHERE system_id = $1`,
     [system_id]
   );
+  await db.none(`DELETE FROM ${client_id}_notifications WHERE system_id = $1`, [
+    system_id,
+  ]);
+
+  await db.none(`DELETE FROM ${client_id}_systems WHERE id = $1`, [system_id]);
 
   await addclienttransaction(deletedby, client_id, "DELETE_SYSTEM");
   return ["System Successfully Deleted", 200];

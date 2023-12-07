@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.1468.0",
     "jsonwebtoken": "^9.0.0",
     "pg-promise": "^10.11.1"
   }

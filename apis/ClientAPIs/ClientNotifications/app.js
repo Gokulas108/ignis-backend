@@ -112,26 +112,31 @@ async function getNotifications(
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT nt.*, sys.name as system_name, sys.tag as system_tag, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) ORDER BY nt.id OFFSET $2 LIMIT $3`,
+      `SELECT nt.*, sys.name as system_name, sys.tag as system_tag,bld.building_name, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) ORDER BY nt.id OFFSET $2 LIMIT $3`,
       [username, offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT nt.*, sys.name as system_name, sys.tag as system_tag, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) AND nt.description iLIKE $2 ORDER BY nt.id OFFSET $3 LIMIT $4`,
+      `SELECT nt.*, sys.name as system_name, sys.tag as system_tag,bld.building_name, count(nt.*) OVER() AS full_count FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id JOIN ${client_id}_building_controllers bc ON nt.building_controller = bc.id WHERE $1 = ANY(bc.assigned_users) AND nt.description iLIKE $2 ORDER BY nt.id OFFSET $3 LIMIT $4`,
       [username, searchText, offset, limit]
     );
   }
+
   return [data, 200];
 }
 
 async function getNotification(id, client_id) {
   let notification_id = parseInt(id);
-  const data = await db.any(
-    `SELECT nt.*, sys.name as system_name, sys.tag as system_tag FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id WHERE nt.id = $1`,
+  const data = await db.one(
+    `SELECT nt.*, sys.name as system_name, sys.tag as system_tag, bld.building_name FROM ${client_id}_notifications nt JOIN ${client_id}_systems sys ON nt.system_id = sys.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id WHERE nt.id = $1`,
     [notification_id]
   );
-  return [data, 200];
+  const assets = await db.any(
+    `SELECT asset.id, asset.tag, device.name FROM ${client_id}_assets asset JOIN devicetypes device ON asset.type_id = device.id WHERE asset.id = ANY($1)`,
+    [data.asset_ids]
+  );
+  return [{ data, assets }, 200];
 }
 
 async function addNotification(

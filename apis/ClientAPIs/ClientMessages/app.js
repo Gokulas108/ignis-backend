@@ -18,17 +18,17 @@ exports.lambdaHandler = async (event, context) => {
         [data, statusCode] = ["Success", 200];
         break;
       case "GET":
-        if (event.pathParameters && event.pathParameters.wo_id) {
+        if (event.pathParameters && event.pathParameters.id) {
           [data, statusCode] = await authorize(
             authcode.GET_MESSAGE,
             ip,
             useragent,
             token,
             async (username, client_id) =>
-              await getMessages(event.pathParameters.wo_id, client_id)
+              await getMessages(event.pathParameters.id, client_id, username)
           );
         } else {
-          throw new Error("Missing Work Order ID");
+          throw new Error("Missing ID");
         }
         break;
       case "POST":
@@ -65,23 +65,27 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getMessages(id, client_id) {
+async function getMessages(id, client_id, username) {
   let wo_id = parseInt(id);
   const data = await db.any(
-    `SELECT msg.*, user.name as name FROM ${client_id}_messages msg JOIN ${client_id}_users user ON msg.createdby = user.username  WHERE msg.wo_id = $1`,
+    `SELECT msg.* , cu.name FROM ${client_id}_messages msg JOIN ${client_id}_users cu ON msg.createdby = cu.username  WHERE msg.wo_id = $1`,
     [wo_id]
+  );
+  await db.none(
+    `UPDATE ${client_id}_messages SET seen = $1 WHERE wo_id = $2 AND createdby != $3`,
+    [true, wo_id, username]
   );
   return [data, 200];
 }
 
-async function addMessage({ type, message }, createdBy, client_id) {
-  if (!message || !type) throw new Error("Missing required fields");
+async function addMessage({ wo_id, type, message }, createdBy, client_id) {
+  if (!message || !type || !wo_id) throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    `INSERT into ${client_id}_messages (type, message, createdby, createdat) VALUES ($1, $2, $3, $4)`,
-    [type, message, createdBy, date_now]
+    `INSERT into ${client_id}_messages (wo_id, type, message, createdby, createdat) VALUES ($1, $2, $3, $4, $5)`,
+    [wo_id, type, message, createdBy, date_now]
   );
   await addclienttransaction(createdBy, client_id, "ADD_MESSAGE");
   return ["Message Successfully Added", 200];

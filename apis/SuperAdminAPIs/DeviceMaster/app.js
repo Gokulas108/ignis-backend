@@ -27,7 +27,7 @@ exports.lambdaHandler = async (event, context) => {
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
-          if (params.page && params.limit) {
+          if (params.page && params.limit && params.system_id) {
             page = parseInt(params.page);
             limit = parseInt(params.limit);
             // if (event.headers["ignistoken"])
@@ -40,14 +40,14 @@ exports.lambdaHandler = async (event, context) => {
                 getDevices(
                   page,
                   limit,
+                  params.system_id,
                   params.searchText,
                   event.headers["ignistoken"]
                 ),
               true
             );
-            // else throw new Error("Missing Token");
           } else {
-            throw new Error("Missing Page or Limit");
+            throw new Error("Missing Parameters");
           }
         } else {
           throw new Error("Missing ID");
@@ -98,24 +98,19 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getDevices(
-  page = 1,
-  limit = 10,
-  searchText = "",
-  token = "123"
-) {
+async function getDevices(page = 1, limit = 10, system_id, searchText = "") {
   let offset = (page - 1) * limit;
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT device.* ,  sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id ORDER BY device.name OFFSET $1 LIMIT $2`,
-      [offset, limit]
+      `SELECT device.* ,  sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id WHERE device.systemid = $1 ORDER BY device.name OFFSET $2 LIMIT $3`,
+      [system_id, offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT device.* , sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id WHERE device.name iLIKE $1  OR sys.name iLIKE $1 ORDER BY device.name OFFSET $2 LIMIT $3`,
-      [searchText, offset, limit]
+      `SELECT device.* , sys.name as sysname, count(device.*) OVER() AS full_count FROM devicetypes device JOIN systemtypes sys ON device.systemid = sys.id WHERE device.systemid = $4 AND (device.name iLIKE $1  OR sys.name iLIKE $1) ORDER BY device.name OFFSET $2 LIMIT $3`,
+      [searchText, offset, limit, system_id]
     );
   }
   return [data, 200];
@@ -136,66 +131,26 @@ async function deleteDevice(id) {
   return ["Device Successfully Deleted", 200];
 }
 
-async function addDevice(
-  {
-    name,
-    frequency,
-    systemid,
-    general_fields,
-    inspection_fields,
-    testing_fields,
-    maintenance_fields,
-  },
-  createdBy
-) {
+async function addDevice({ name, systemid, general_fields }, createdBy) {
   if (!name || !systemid || !createdBy)
     throw new Error("Missing required fields");
 
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into devicetypes (name, systemid, general_fields, inspection_fields ,testing_fields, maintenance_fields, frequency, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3::json[], $4::json[], $5::json[],$6::json[],$7, $8, $8, $9, $9)",
-    [
-      name,
-      systemid,
-      general_fields,
-      inspection_fields,
-      testing_fields,
-      maintenance_fields,
-      frequency,
-      createdBy,
-      date_now,
-    ]
+    "INSERT into devicetypes (name, systemid, general_fields, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3::json[],  $4, $4, $5, $5)",
+    [name, systemid, general_fields, createdBy, date_now]
   );
 
   return ["Device Successfully Added", 200];
 }
 
-async function updateDevice(
-  {
-    id,
-    frequency,
-    general_fields,
-    inspection_fields,
-    testing_fields,
-    maintenance_fields,
-  },
-  updatedby
-) {
+async function updateDevice({ id, general_fields }, updatedby) {
   const date_now = new Date().toISOString();
 
   await db.none(
-    "UPDATE devicetypes SET general_fields =  $1::json[], inspection_fields = $2::json[] ,testing_fields = $3::json[] ,maintenance_fields = $4::json[] , frequency = $5, updatedAt = $6 , updatedby = $7 WHERE id = $8 ",
-    [
-      general_fields,
-      inspection_fields,
-      testing_fields,
-      maintenance_fields,
-      frequency,
-      date_now,
-      updatedby,
-      id,
-    ]
+    "UPDATE devicetypes SET general_fields =  $1::json[], updatedAt = $2 , updatedby = $3 WHERE id = $4",
+    [general_fields, date_now, updatedby, id]
   );
 
   return ["Device Successfully Updated", 200];

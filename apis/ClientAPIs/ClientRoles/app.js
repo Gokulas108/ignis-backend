@@ -132,16 +132,16 @@ async function addClientRole({ role, authorizations }, createdBy, client_id) {
 
   const date_now = new Date().toISOString();
 
-  await db.none(
-    `INSERT into ${client_id}_user_roles (role, authorizations, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $5)`,
-    [role, authorizations, createdBy, updatedby, date_now, date_now]
+  let data = await db.one(
+    `INSERT into ${client_id}_user_roles (role, authorizations, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $3, $4, $4) returning id`,
+    [role, authorizations, createdBy, date_now]
   );
   await addclienttransaction(createdBy, client_id, "ADD_USER_ROLE");
-  return ["Role Successfully Added", 200];
+  return [data, 200];
 }
 
 async function updateClientRole(
-  { role, authorizations },
+  { id, role, authorizations },
   updatedby,
   client_id
 ) {

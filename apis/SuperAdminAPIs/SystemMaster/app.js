@@ -101,7 +101,7 @@ async function getSystems(page = 1, limit = 10, searchText = "") {
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT sys.*  count(sys.*) OVER() AS full_count FROM systemtypes sys ORDER BY sys.name OFFSET $1 LIMIT $2`,
+      `SELECT sys.* , count(sys.*) OVER() AS full_count FROM systemtypes sys ORDER BY sys.name OFFSET $1 LIMIT $2`,
       [offset, limit]
     );
   } else {

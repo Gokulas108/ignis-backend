@@ -22,37 +22,80 @@ exports.lambdaHandler = async (event, context) => {
 
       case "POST":
         body = JSON.parse(event.body);
-        [data, statusCode] = await authorize(
-          authcode.VIEW_FILE,
-          ip,
-          useragent,
-          token,
-          async (username, client_id) => await getPresignedUrl(body)
-        );
+        if (event.queryStringParameters) {
+          if (event.queryStringParameters.superadmin) {
+            [data, statusCode] = await authorize(
+              [],
+              ip,
+              useragent,
+              token,
+              async (id) => await getPresignedUrl(body),
+              true
+            );
+          } else {
+            throw new Error("Missing Superadmin");
+          }
+        } else {
+          [data, statusCode] = await authorize(
+            authcode.VIEW_FILE,
+            ip,
+            useragent,
+            token,
+            async (username, client_id) => await getPresignedUrl(body)
+          );
+        }
         break;
 
       case "PUT":
         body = JSON.parse(event.body);
-        [data, statusCode] = await authorize(
-          authcode.UPLOAD_FILE,
-          ip,
-          useragent,
-          token,
-          async (username, client_id) =>
-            await createPresignedUrl(body, username, client_id)
-        );
+        if (event.queryStringParameters) {
+          if (event.queryStringParameters.superadmin) {
+            [data, statusCode] = await authorize(
+              [],
+              ip,
+              useragent,
+              token,
+              async (id) => await createPresignedUrl(body),
+              true
+            );
+          } else {
+            throw new Error("Missing Superadmin");
+          }
+        } else
+          [data, statusCode] = await authorize(
+            authcode.UPLOAD_FILE,
+            ip,
+            useragent,
+            token,
+            async (username, client_id) =>
+              await createPresignedUrl(body, username, client_id)
+          );
         break;
 
       case "DELETE":
         body = JSON.parse(event.body);
-        [data, statusCode] = await authorize(
-          authcode.DELETE_FILE,
-          ip,
-          useragent,
-          token,
-          async (username, client_id) =>
-            await deleteFile(body, username, client_id)
-        );
+        if (event.queryStringParameters) {
+          if (event.queryStringParameters.superadmin) {
+            [data, statusCode] = await authorize(
+              [],
+              ip,
+              useragent,
+              token,
+              async (id) => await deleteFile(body),
+              true
+            );
+          } else {
+            throw new Error("Missing Superadmin");
+          }
+        } else
+          [data, statusCode] = await authorize(
+            authcode.DELETE_FILE,
+            ip,
+            useragent,
+            token,
+            async (username, client_id) =>
+              await deleteFile(body, username, client_id)
+          );
         break;
 
       default:
@@ -69,8 +112,8 @@ exports.lambdaHandler = async (event, context) => {
 
 async function createPresignedUrl(
   { type, type_name, file_name, content_type },
-  username,
-  client_id
+  username = false,
+  client_id = "admin"
 ) {
   AWS.config.update({ region: process.env.REGION });
   const s3 = new AWS.S3();
@@ -83,8 +126,8 @@ async function createPresignedUrl(
     ContentType: content_type,
   };
   let uploadURL = s3.getSignedUrl("putObject", s3Params);
-
-  await addclienttransaction(username, client_id, "FILE_UPLOAD");
+  if (username && client_id)
+    await addclienttransaction(username, client_id, "FILE_UPLOAD");
   return [{ uploadURL, filepath }, 200];
 }
 async function getPresignedUrl({ filepath }) {
@@ -102,7 +145,7 @@ async function getPresignedUrl({ filepath }) {
   return [viewURL, 200];
 }
 
-async function deleteFile({ filepath }, username, client_id) {
+async function deleteFile({ filepath }, username = false, client_id = "admin") {
   const client = new S3Client({ region: process.env.REGION });
   const command = new DeleteObjectCommand({
     Bucket: process.env.BUCKET,
@@ -110,7 +153,7 @@ async function deleteFile({ filepath }, username, client_id) {
   });
   const response = await client.send(command);
   console.log(response);
-
-  await addclienttransaction(username, client_id, "FILE_DELETE");
+  if (username && client_id)
+    await addclienttransaction(username, client_id, "FILE_DELETE");
   return ["File deleted successfully", 200];
 }

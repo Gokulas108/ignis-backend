@@ -1,6 +1,7 @@
 const db = require("/opt/nodejs/utils/db.js");
 const responseHandler = require("/opt/nodejs/utils/responseHandler.js");
 const authorize = require("/opt/nodejs/utils/authorize.js");
+const { IdentityStore } = require("aws-sdk");
 
 exports.lambdaHandler = async (event, context) => {
   let statusCode = 200;
@@ -71,7 +72,7 @@ exports.lambdaHandler = async (event, context) => {
           ip,
           useragent,
           token,
-          async (id) => await addProcedure(body),
+          async (id) => await addProcedure(body, id),
           true
         );
         break;
@@ -152,21 +153,34 @@ async function deleteProcedure(id) {
   return ["Procedure Successfully Deleted", 200];
 }
 
-async function addProcedure({
-  ahj,
-  code,
-  procedure,
-  system,
-  devices,
-  activity,
-  createdBy = 1,
-}) {
-  if (!code || !createdBy || !system || !activity || !devices || !ahj)
+async function addProcedure(
+  {
+    ahj,
+    code,
+    procedure,
+    system,
+    devices,
+    activity,
+    instructions,
+    device_wise,
+    frequency,
+  },
+  createdBy
+) {
+  if (
+    !code ||
+    !system ||
+    !activity ||
+    !devices ||
+    !ahj ||
+    !instructions ||
+    !frequency
+  )
     throw new Error("Missing required fields");
   const date_now = new Date().toISOString();
 
   await db.none(
-    "INSERT into procedures (ahj, code, procedure, system, devices, activity, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6, $7, $7, $8, $9)",
+    "INSERT into procedures (ahj, code, procedure, system, devices, activity, instructions, device_wise, frequency, createdBy, updatedby, createdAt, updatedAt) VALUES ($1, $2, $3, $4, $5, $6,  $7, $8, $9, $10, $10, $11, $11)",
     [
       ahj,
       code,
@@ -174,8 +188,10 @@ async function addProcedure({
       system,
       devices,
       activity,
+      instructions,
+      device_wise,
+      frequency,
       createdBy,
-      date_now,
       date_now,
     ]
   );

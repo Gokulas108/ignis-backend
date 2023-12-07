@@ -437,7 +437,7 @@ async function getBuildings(client_id) {
 //Getting data from Assets table with System ID
 async function getAssets(system_id, client_id) {
   const data = await db.any(
-    `SELECT ast.id, dev.name AS name FROM ${client_id}_assets ast JOIN devicetypes dev ON ast.type_id = dev.id  WHERE system_id = $1`,
+    `SELECT ast.id, ast.tag, dev.name AS name FROM ${client_id}_assets ast JOIN devicetypes dev ON ast.type_id = dev.id  WHERE system_id = $1`,
     [system_id]
   );
   let statusCode = 200;
@@ -678,7 +678,7 @@ async function getDeviceFields(id) {
 //Getting data from devicetypes table using sytem type id
 async function getAllDeviceTypes(id) {
   const data = await db.any(
-    "SELECT id, name, frequency FROM devicetypes WHERE systemid= $1 ",
+    "SELECT id, name FROM devicetypes WHERE systemid= $1 ",
     [id]
   );
   let statusCode = 200;

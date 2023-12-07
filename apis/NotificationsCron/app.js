@@ -5,6 +5,7 @@ exports.lambdaHandler = async (event, context) => {
     `SELECT client_id, timezone, notification_frequency FROM client WHERE id != $1`,
     [1]
   );
+
   data.forEach(async ({ client_id, timezone, notification_frequency }) => {
     let date_now = new Date(
       new Date().toLocaleString("en-US", { timeZone: timezone })
@@ -14,10 +15,13 @@ exports.lambdaHandler = async (event, context) => {
         new Date().toLocaleString("en-US", { timeZone: timezone })
       ).setDate(new Date().getDate() + notification_frequency)
     ).toISOString();
-
+    let closed = await db.any(
+      `SELECT asset_ids FROM ${client_id}_notifications WHERE status != $1`,
+      ["CLOSED"]
+    );
     let assets = await db.any(
-      `SELECT ast.id AS asset_id , ast.system_id AS system_id FROM ${client_id}_assets  WHERE ast.id != ANY(SELECT asset_ids FROM ${client_id}_notifications WHERE status != $1) AND ast.next_service <= $2`,
-      ["", date_new]
+      `SELECT ast.id AS asset_id , ast.system_id AS system_id FROM ${client_id}_assets  WHERE ast.id != ANY($1) AND ast.next_service <= $2`,
+      [closed, date_new]
     );
     const SystemAsset = assets.reduce((group, arr) => {
       const { system_id, asset_id } = arr;

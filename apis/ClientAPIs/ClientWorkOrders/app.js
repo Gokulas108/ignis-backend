@@ -28,7 +28,7 @@ exports.lambdaHandler = async (event, context) => {
             useragent,
             token,
             async (username, client_id) =>
-              await getWorkOrder(event.pathParameters.id, client_id)
+              await getWorkOrder(event.pathParameters.id, client_id, username)
           );
         } else if (event.queryStringParameters) {
           let params = event.queryStringParameters;
@@ -41,7 +41,13 @@ exports.lambdaHandler = async (event, context) => {
               useragent,
               token,
               async (username, client_id) =>
-                await getWorkOrders(page, limit, params.searchText, client_id)
+                await getWorkOrders(
+                  page,
+                  limit,
+                  params.searchText,
+                  username,
+                  client_id
+                )
             );
           } else {
             throw new Error("Missing Page or Limit");
@@ -95,31 +101,52 @@ exports.lambdaHandler = async (event, context) => {
   return response;
 };
 
-async function getWorkOrders(page = 1, limit = 10, searchText = "", client_id) {
+async function getWorkOrders(
+  page = 1,
+  limit = 10,
+  searchText = "",
+
+  username,
+  client_id
+) {
   let offset = (page - 1) * limit;
   let data;
   if (searchText === "") {
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_workorders ORDER BY id OFFSET $1 LIMIT $2`,
-      [offset, limit]
+      `SELECT wo.*, noti.id AS notification_id, sys.name, bld.building_name, count(wo.*) OVER() AS full_count FROM ${client_id}_workorders wo JOIN ${client_id}_notifications noti ON wo.notification_id = noti.id JOIN ${client_id}_systems sys ON noti.system_id = sys.id JOIN ${client_id}_building_controllers blc ON noti.building_controller = blc.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id WHERE $1 = ANY(blc.assigned_users)   ORDER BY wo.id DESC OFFSET $2 LIMIT $3`,
+      [username, offset, limit]
     );
   } else {
     searchText = `%${searchText}%`;
     data = await db.any(
-      `SELECT *, count(*) OVER() AS full_count FROM ${client_id}_workorders WHERE id iLIKE $1 OR notification_id iLIKE $1 OR remarks iLIKE $1 ORDER BY id OFFSET $2 LIMIT $3`,
-      [searchText, offset, limit]
+      `SELECT wo.*, noti.id AS notification_id, sys.name, bld.building_name, count(wo.*) OVER() AS full_count FROM ${client_id}_workorders wo JOIN ${client_id}_notifications noti ON wo.notification_id = noti.id JOIN ${client_id}_systems sys ON noti.system_id = sys.id JOIN ${client_id}_building_controllers blc ON noti.building_controller = blc.id  JOIN ${client_id}_buildings bld ON sys.building_id = bld.id WHERE $1 = ANY(blc.assigned_users) AND (wo.id LIKE $2 OR sys.name iLIKE $2 OR bld.building_name iLIKE $2 OR noti.id LIKE $2)  ORDER BY wo.id DESC OFFSET $3 LIMIT $4`,
+      [username, searchText, offset, limit]
     );
   }
   return [data, 200];
 }
 
-async function getWorkOrder(id, client_id) {
+async function getWorkOrder(id, client_id, username) {
   let workorder_id = parseInt(id);
-  const data = await db.any(
-    `SELECT * FROM ${client_id}_workorders WHERE id = $1`,
+  const data = await db.one(
+    `SELECT wo.* AS workorder, noti.* AS notification, sys.* AS system, bld.* AS building, cu.name AS leadexecutor_name FROM ${client_id}_workorders wo JOIN ${client_id}_users cu ON wo.lead_executor = cu.username  JOIN ${client_id}_notifications noti ON wo.notification_id = noti.id JOIN ${client_id}_systems sys ON noti.system_id = sys.id JOIN ${client_id}_buildings bld ON sys.building_id = bld.id  WHERE wo.id = $1`,
     [workorder_id]
   );
-  return [data, 200];
+
+  const message_count = await db.one(
+    `SELECT count(*) FROM ${client_id}_messages WHERE wo_id = $1 AND seen = $2 AND createdby != $3`,
+    [workorder_id, false, username]
+  );
+
+  const employees = await db.any(
+    `SELECT id, full_name FROM ${client_id}_employees WHERE id = ANY($1)`,
+    [data.employees]
+  );
+  const resources = await db.any(
+    `SELECT id, name FROM ${client_id}_resources WHERE id = ANY($1)`,
+    [data.resources]
+  );
+  return [{ data, employees, resources, message_count }, 200];
 }
 
 async function addWorkOrder(data, createdBy, client_id) {

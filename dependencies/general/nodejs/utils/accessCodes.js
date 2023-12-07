@@ -51,4 +51,5 @@ module.exports = {
   GET_MESSAGE: "mg01",
   ADD_MESSAGE: "mg02",
   DELETE_MESSAGE: "mg03",
+  TECHNICIAN: "ta00",
 };
